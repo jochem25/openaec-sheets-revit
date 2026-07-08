@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 
 using Microsoft.Win32;
 
@@ -31,6 +32,17 @@ public partial class MainWindow : Window
                 "Model kon niet gelezen worden:\n" + ex.Message,
                 "OpenAEC Sheet Exporter", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void OnFormatToggleClick(object sender, RoutedEventArgs e)
+    {
+        // CheckBox consumeert de klik — selecteer zelf de bijbehorende formaat-tab
+        var element = sender as DependencyObject;
+        while (element is not null and not TabItem)
+            element = System.Windows.Media.VisualTreeHelper.GetParent(element);
+
+        if (element is TabItem tab)
+            tab.IsSelected = true;
     }
 
     private void OnBrowseFolder(object sender, RoutedEventArgs e)

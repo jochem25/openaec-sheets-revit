@@ -31,19 +31,17 @@ public sealed class RevitGateway : IRevitGateway
 
     // ── Lezen ───────────────────────────────────────────────────────────────
 
-    public Task<IReadOnlyList<SheetItem>> GetSheetsAsync() =>
-        _handler.ExecuteAsync<IReadOnlyList<SheetItem>>(app =>
+    public Task<ModelSnapshot> GetSnapshotAsync() =>
+        _handler.ExecuteAsync(app =>
         {
             var doc = app.ActiveUIDocument.Document;
-            var items = new List<SheetItem>();
 
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var sheet in sheets)
+            var sheets = new List<SheetItem>();
+            foreach (var sheet in new FilteredElementCollector(doc)
+                         .OfClass(typeof(ViewSheet))
+                         .Cast<ViewSheet>()
+                         .Where(s => !s.IsPlaceholder)
+                         .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase))
             {
                 var item = new SheetItem
                 {
@@ -56,28 +54,18 @@ public sealed class RevitGateway : IRevitGateway
                     Parameters = CollectParameters(sheet),
                 };
                 _itemCache[item.Id] = item;
-                items.Add(item);
+                sheets.Add(item);
             }
 
-            return items;
-        });
-
-    public Task<IReadOnlyList<SheetItem>> GetViewsAsync() =>
-        _handler.ExecuteAsync<IReadOnlyList<SheetItem>>(app =>
-        {
-            var doc = app.ActiveUIDocument.Document;
-            var items = new List<SheetItem>();
-
-            var views = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
-                .Where(v => !v.IsTemplate
-                            && v.CanBePrinted
-                            && v.ViewType != ViewType.DrawingSheet)
-                .OrderBy(v => v.ViewType.ToString())
-                .ThenBy(v => v.Name, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var view in views)
+            var views = new List<SheetItem>();
+            foreach (var view in new FilteredElementCollector(doc)
+                         .OfClass(typeof(View))
+                         .Cast<View>()
+                         .Where(v => !v.IsTemplate
+                                     && v.CanBePrinted
+                                     && v.ViewType != ViewType.DrawingSheet)
+                         .OrderBy(v => v.ViewType.ToString())
+                         .ThenBy(v => v.Name, StringComparer.OrdinalIgnoreCase))
             {
                 var item = new SheetItem
                 {
@@ -85,68 +73,40 @@ public sealed class RevitGateway : IRevitGateway
                     IsSheet = false,
                     Number = view.ViewType.ToString(),
                     Name = view.Name,
-                    Revision = "",
-                    Size = "",
                     Parameters = CollectParameters(view),
                 };
                 _itemCache[item.Id] = item;
-                items.Add(item);
+                views.Add(item);
             }
 
-            return items;
+            var sets = new Dictionary<string, IReadOnlyList<long>>();
+            foreach (var set in new FilteredElementCollector(doc)
+                         .OfClass(typeof(ViewSheetSet))
+                         .Cast<ViewSheetSet>()
+                         .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                var ids = new List<long>();
+                foreach (View view in set.Views)
+                    ids.Add(view.Id.Value);
+                sets[set.Name] = ids;
+            }
+
+            return new ModelSnapshot
+            {
+                Sheets = sheets,
+                Views = views,
+                ViewSheetSets = sets,
+                DwgSetupNames = SetupNames(doc, typeof(ExportDWGSettings)),
+                DgnSetupNames = SetupNames(doc, typeof(ExportDGNSettings)),
+            };
         });
 
-    public Task<IReadOnlyList<string>> GetViewSheetSetNamesAsync() =>
-        _handler.ExecuteAsync<IReadOnlyList<string>>(app =>
-            new FilteredElementCollector(app.ActiveUIDocument.Document)
-                .OfClass(typeof(ViewSheetSet))
-                .Cast<ViewSheetSet>()
-                .Select(s => s.Name)
-                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .ToList());
-
-    public Task<IReadOnlyList<long>> GetViewSheetSetIdsAsync(string setName) =>
-        _handler.ExecuteAsync<IReadOnlyList<long>>(app =>
-        {
-            var set = new FilteredElementCollector(app.ActiveUIDocument.Document)
-                .OfClass(typeof(ViewSheetSet))
-                .Cast<ViewSheetSet>()
-                .FirstOrDefault(s => s.Name == setName);
-
-            if (set is null) return [];
-
-            var ids = new List<long>();
-            foreach (View view in set.Views)
-                ids.Add(view.Id.Value);
-            return ids;
-        });
-
-    public Task<IReadOnlyList<string>> GetDwgSetupNamesAsync() =>
-        _handler.ExecuteAsync<IReadOnlyList<string>>(app =>
-            new FilteredElementCollector(app.ActiveUIDocument.Document)
-                .OfClass(typeof(ExportDWGSettings))
-                .Cast<ExportDWGSettings>()
-                .Select(s => s.Name)
-                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .ToList());
-
-    public Task<IReadOnlyList<string>> GetDgnSetupNamesAsync() =>
-        _handler.ExecuteAsync<IReadOnlyList<string>>(app =>
-            new FilteredElementCollector(app.ActiveUIDocument.Document)
-                .OfClass(typeof(ExportDGNSettings))
-                .Cast<ExportDGNSettings>()
-                .Select(s => s.Name)
-                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .ToList());
-
-    public Task<IReadOnlyList<string>> GetSheetParameterNamesAsync() =>
-        Task.FromResult<IReadOnlyList<string>>(
-            _itemCache.Values
-                .Where(i => i.IsSheet)
-                .SelectMany(i => i.Parameters.Keys)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .ToList());
+    private static List<string> SetupNames(Document doc, Type setupType) =>
+        new FilteredElementCollector(doc)
+            .OfClass(setupType)
+            .Select(s => s.Name)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static Dictionary<string, string> CollectParameters(Element element)
     {

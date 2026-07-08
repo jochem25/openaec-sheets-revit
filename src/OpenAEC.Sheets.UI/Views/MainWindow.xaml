@@ -118,7 +118,10 @@
                     <!-- PDF -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="PDF" IsChecked="{Binding PdfEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding PdfEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="PDF" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <WrapPanel Margin="10" Orientation="Horizontal">
                             <GroupBox Header="Weergave" Style="{StaticResource SettingsGroup}" Width="280">
@@ -175,7 +178,10 @@
                     <!-- DWG -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="DWG" IsChecked="{Binding DwgEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding DwgEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="DWG" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <StackPanel Margin="10">
                             <GroupBox Header="Export setup" Style="{StaticResource SettingsGroup}" Width="420" HorizontalAlignment="Left">
@@ -198,7 +204,10 @@
                     <!-- DGN -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="DGN" IsChecked="{Binding DgnEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding DgnEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="DGN" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <StackPanel Margin="10">
                             <GroupBox Header="Export setup" Style="{StaticResource SettingsGroup}" Width="420" HorizontalAlignment="Left">
@@ -214,7 +223,10 @@
                     <!-- DWF -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="DWF" IsChecked="{Binding DwfEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding DwfEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="DWF" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <WrapPanel Margin="10">
                             <GroupBox Header="Opties" Style="{StaticResource SettingsGroup}" Width="300">
@@ -245,7 +257,10 @@
                     <!-- NWC -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="NWC" IsChecked="{Binding NwcEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding NwcEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="NWC" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <StackPanel Margin="10">
                             <GroupBox Header="Navisworks" Style="{StaticResource SettingsGroup}" Width="360" HorizontalAlignment="Left">
@@ -266,7 +281,10 @@
                     <!-- IFC -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="IFC" IsChecked="{Binding IfcEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding IfcEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="IFC" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <WrapPanel Margin="10">
                             <GroupBox Header="Algemeen" Style="{StaticResource SettingsGroup}" Width="300">
@@ -330,7 +348,10 @@
                     <!-- IMG -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="IMG" IsChecked="{Binding ImgEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding ImgEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="IMG" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <WrapPanel Margin="10">
                             <GroupBox Header="Afbeeldingsgrootte" Style="{StaticResource SettingsGroup}" Width="300">
@@ -375,7 +396,10 @@
                     <!-- XML -->
                     <TabItem>
                         <TabItem.Header>
-                            <CheckBox Content="XML" IsChecked="{Binding XmlEnabled}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding XmlEnabled}" Click="OnFormatToggleClick" VerticalAlignment="Center" />
+                                <TextBlock Text="XML" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </TabItem.Header>
                         <DockPanel Margin="10">
                             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">

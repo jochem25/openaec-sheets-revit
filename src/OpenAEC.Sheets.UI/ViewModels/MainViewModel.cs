@@ -282,27 +282,32 @@ public sealed partial class MainViewModel : ObservableObject
     {
         StatusText = "Model wordt gelezen…";
 
-        var sheets = await _gateway.GetSheetsAsync();
-        var views = await _gateway.GetViewsAsync();
-        _sheetRows = sheets.Select(s => Track(new SheetRowViewModel(s))).ToList();
-        _viewRows = views.Select(v => Track(new SheetRowViewModel(v))).ToList();
+        // Eén Revit-rondreis voor alles — losse calls wachten elk op een idle-moment van Revit
+        var snapshot = await _gateway.GetSnapshotAsync();
+
+        _sheetRows = snapshot.Sheets.Select(s => Track(new SheetRowViewModel(s))).ToList();
+        _viewRows = snapshot.Views.Select(v => Track(new SheetRowViewModel(v))).ToList();
 
         SetFilters.Clear();
         SetFilters.Add(ALL_SETS);
         _setContents = new Dictionary<string, HashSet<long>>();
-        foreach (var setName in await _gateway.GetViewSheetSetNamesAsync())
+        foreach (var (setName, ids) in snapshot.ViewSheetSets)
         {
             SetFilters.Add(setName);
-            _setContents[setName] = [.. await _gateway.GetViewSheetSetIdsAsync(setName)];
+            _setContents[setName] = [.. ids];
         }
 
         DwgSetupNames.Clear();
-        foreach (var name in await _gateway.GetDwgSetupNamesAsync()) DwgSetupNames.Add(name);
+        foreach (var name in snapshot.DwgSetupNames) DwgSetupNames.Add(name);
         DgnSetupNames.Clear();
-        foreach (var name in await _gateway.GetDgnSetupNamesAsync()) DgnSetupNames.Add(name);
+        foreach (var name in snapshot.DgnSetupNames) DgnSetupNames.Add(name);
 
         XmlParameters.Clear();
-        foreach (var name in await _gateway.GetSheetParameterNamesAsync())
+        var paramNames = snapshot.Sheets
+            .SelectMany(s => s.Parameters.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in paramNames)
             XmlParameters.Add(new ParamRowViewModel(name));
 
         ProfileNames.Clear();

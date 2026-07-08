@@ -10,20 +10,11 @@ public interface IRevitGateway
 {
     string DocumentTitle { get; }
 
-    Task<IReadOnlyList<SheetItem>> GetSheetsAsync();
-    Task<IReadOnlyList<SheetItem>> GetViewsAsync();
-
-    /// <summary>Namen van View/Sheet Sets in het model.</summary>
-    Task<IReadOnlyList<string>> GetViewSheetSetNamesAsync();
-
-    /// <summary>ElementId.Value's van de views/sheets in een View/Sheet Set.</summary>
-    Task<IReadOnlyList<long>> GetViewSheetSetIdsAsync(string setName);
-
-    Task<IReadOnlyList<string>> GetDwgSetupNamesAsync();
-    Task<IReadOnlyList<string>> GetDgnSetupNamesAsync();
-
-    /// <summary>Alle parameternamen die op sheets voorkomen (voor naming-tokens en XML).</summary>
-    Task<IReadOnlyList<string>> GetSheetParameterNamesAsync();
+    /// <summary>
+    /// Leest alles wat de UI nodig heeft in één Revit API-call:
+    /// sheets, views, view/sheet sets en exportsetups.
+    /// </summary>
+    Task<ModelSnapshot> GetSnapshotAsync();
 
     /// <summary>Voert de jobs één voor één uit op de Revit-thread en rapporteert voortgang.</summary>
     Task ExportAsync(
@@ -32,6 +23,20 @@ public interface IRevitGateway
         string outputFolder,
         IProgress<ExportProgress> progress,
         CancellationToken cancellationToken);
+}
+
+/// <summary>Alle modelgegevens voor de UI, opgehaald in één Revit-rondreis.</summary>
+public sealed class ModelSnapshot
+{
+    public IReadOnlyList<SheetItem> Sheets { get; init; } = [];
+    public IReadOnlyList<SheetItem> Views { get; init; } = [];
+
+    /// <summary>View/Sheet Set-naam → ElementId.Value's van de views/sheets erin.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<long>> ViewSheetSets { get; init; }
+        = new Dictionary<string, IReadOnlyList<long>>();
+
+    public IReadOnlyList<string> DwgSetupNames { get; init; } = [];
+    public IReadOnlyList<string> DgnSetupNames { get; init; } = [];
 }
 
 /// <param name="JobIndex">Index van de afgeronde/falende job.</param>

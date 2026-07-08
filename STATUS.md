@@ -1,8 +1,12 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-07-08
+> Laatst bijgewerkt: 2026-07-08 (2e iteratie na eerste runtime-test)
 
-## Huidige fase: v0.1 — eerste werkende versie, wacht op Revit runtime-test
+## Huidige fase: v0.1 — eerste runtime-feedback verwerkt
+
+### Fixes na eerste test in Revit
+- Init las het model in 6+ losse ExternalEvent-rondreizen (traag, elk wacht op Revit-idle) → nu één `GetSnapshotAsync()`-call voor sheets, views, sets en setups
+- Formaat-tabs waren niet aanklikbaar: de CheckBox-header consumeerde de klik → header is nu checkbox + tekst, en klik op de checkbox selecteert ook de tab
 
 ### Voltooid (8 juli)
 - Repo-opzet naar het patroon van openaec-bcf-revit (Core/UI/Revit, .NET 8, Revit 2025+)
