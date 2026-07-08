@@ -38,6 +38,12 @@ public sealed class ModelSnapshot
 
     public IReadOnlyList<string> DwgSetupNames { get; init; } = [];
     public IReadOnlyList<string> DgnSetupNames { get; init; } = [];
+
+    /// <summary>Fasenamen in documentvolgorde (voor IFC "Phase to export").</summary>
+    public IReadOnlyList<string> PhaseNames { get; init; } = [];
+
+    /// <summary>Namen van IFC category mapping templates in het document.</summary>
+    public IReadOnlyList<string> CategoryMappingNames { get; init; } = [];
 }
 
 /// <param name="JobIndex">Index van de afgeronde/falende job.</param>

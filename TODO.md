@@ -12,7 +12,7 @@
 - [ ] V/S Sets aanmaken/opslaan vanuit de tool
 - [ ] Revisie-filter ("alleen sheets met revisie X")
 - [ ] Export-manifest JSON naar %TEMP%\3bm_exchange voor BM Reports transmittal
-- [ ] Combine PDF's per groep (Group by parameter, zoals ProSheets premium)
+
 - [ ] Installer (MSI/EXE) + versie-check
 - [ ] Profielen delen via repo/share i.p.v. alleen %APPDATA%
 

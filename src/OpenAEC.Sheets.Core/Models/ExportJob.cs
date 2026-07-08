@@ -18,8 +18,11 @@ public sealed class ExportJob
     /// <summary>Bronitem — null bij gecombineerde jobs (combine PDF/DWF, XML-document).</summary>
     public SheetItem? Item { get; init; }
 
+    /// <summary>Groepslabel bij combine-per-parameter, bijv. de bouwdeel-waarde.</summary>
+    public string? GroupLabel { get; init; }
+
     public string DisplayNumber => Item?.Number ?? "—";
-    public string DisplayName => Item?.Name ?? "(gecombineerd)";
+    public string DisplayName => Item?.Name ?? GroupLabel ?? "(gecombineerd)";
 }
 
 public static class JobBuilder
@@ -37,8 +40,11 @@ public static class JobBuilder
         {
             switch (format)
             {
-                case ExportFormat.Pdf when profile.Pdf.Combine:
+                case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineAll:
                     jobs.Add(CombinedJob(items, format, profile.Pdf.CombinedFileName, documentTitle));
+                    break;
+                case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineByParameter:
+                    jobs.AddRange(GroupedJobs(items, format, profile.Pdf.GroupByParameter, profile.Pdf.CombinedFileName));
                     break;
                 case ExportFormat.Dwf when profile.Dwf.Combine:
                     jobs.Add(CombinedJob(items, format, profile.Dwf.CombinedFileName, documentTitle));
@@ -67,6 +73,28 @@ public static class JobBuilder
             ? item.CustomFileName
             : NamingEngine.Apply(profile.NamingTemplate, item.Parameters);
         return NamingEngine.Sanitize(name);
+    }
+
+    /// <summary>Eén gecombineerde job per unieke waarde van de groepeer-parameter.</summary>
+    private static IEnumerable<ExportJob> GroupedJobs(
+        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix)
+    {
+        var groups = items
+            .GroupBy(i => i.Parameters.GetValueOrDefault(groupParameter, "").Trim())
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in groups)
+        {
+            var label = string.IsNullOrWhiteSpace(group.Key) ? "overig" : group.Key;
+            var name = string.IsNullOrWhiteSpace(prefix) ? label : prefix + "_" + label;
+            yield return new ExportJob
+            {
+                Format = format,
+                ElementIds = group.Select(i => i.Id).ToList(),
+                FileName = NamingEngine.Sanitize(name),
+                GroupLabel = label,
+            };
+        }
     }
 
     private static ExportJob CombinedJob(IReadOnlyList<SheetItem> items, ExportFormat format, string configuredName, string documentTitle)

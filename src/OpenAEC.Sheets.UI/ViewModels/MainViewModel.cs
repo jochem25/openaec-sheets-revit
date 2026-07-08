@@ -104,6 +104,11 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<string> DwgSetupNames { get; } = [];
     public ObservableCollection<string> DgnSetupNames { get; } = [];
     public ObservableCollection<ParamRowViewModel> XmlParameters { get; } = [];
+    public ObservableCollection<string> SheetParameterNames { get; } = [];
+    public ObservableCollection<string> PhaseNames { get; } = [];
+    public ObservableCollection<string> CategoryMappingNames { get; } = [];
+
+    public const string DEFAULT_CHOICE = "(standaard)";
 
     public IReadOnlyList<string> IfcVersions { get; } = ["IFC2x2", "IFC2x3CV2", "IFC4RV", "IFC4DTV"];
 
@@ -131,6 +136,7 @@ public sealed partial class MainViewModel : ObservableObject
         Profile = loaded;
         SyncFormatFlagsFromProfile();
         SyncXmlParametersFromProfile();
+        SyncPdfFileModeFromProfile();
     }
 
     [RelayCommand]
@@ -176,6 +182,33 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnIfcEnabledChanged(bool value) => ToggleFormat(ExportFormat.Ifc, value);
     partial void OnImgEnabledChanged(bool value) => ToggleFormat(ExportFormat.Img, value);
     partial void OnXmlEnabledChanged(bool value) => ToggleFormat(ExportFormat.Xml, value);
+
+    // PDF bestandsmodus (radio buttons ↔ Profile.Pdf.FileMode)
+    [ObservableProperty] private bool _pdfSeparateFiles = true;
+    [ObservableProperty] private bool _pdfCombineAll;
+    [ObservableProperty] private bool _pdfCombineByParameter;
+
+    partial void OnPdfSeparateFilesChanged(bool value)
+    {
+        if (value) Profile.Pdf.FileMode = PdfFileMode.Separate;
+    }
+
+    partial void OnPdfCombineAllChanged(bool value)
+    {
+        if (value) Profile.Pdf.FileMode = PdfFileMode.CombineAll;
+    }
+
+    partial void OnPdfCombineByParameterChanged(bool value)
+    {
+        if (value) Profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+    }
+
+    private void SyncPdfFileModeFromProfile()
+    {
+        PdfSeparateFiles = Profile.Pdf.FileMode == PdfFileMode.Separate;
+        PdfCombineAll = Profile.Pdf.FileMode == PdfFileMode.CombineAll;
+        PdfCombineByParameter = Profile.Pdf.FileMode == PdfFileMode.CombineByParameter;
+    }
 
     private void ToggleFormat(ExportFormat format, bool enabled)
     {
@@ -338,12 +371,26 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var name in snapshot.DgnSetupNames) DgnSetupNames.Add(name);
 
         XmlParameters.Clear();
+        SheetParameterNames.Clear();
         var paramNames = snapshot.Sheets
             .SelectMany(s => s.Parameters.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
         foreach (var name in paramNames)
+        {
             XmlParameters.Add(new ParamRowViewModel(name));
+            SheetParameterNames.Add(name);
+        }
+
+        PhaseNames.Clear();
+        PhaseNames.Add(DEFAULT_CHOICE);
+        foreach (var name in snapshot.PhaseNames) PhaseNames.Add(name);
+
+        CategoryMappingNames.Clear();
+        CategoryMappingNames.Add(DEFAULT_CHOICE);
+        foreach (var name in snapshot.CategoryMappingNames) CategoryMappingNames.Add(name);
+
+        SyncPdfFileModeFromProfile();
 
         ProfileNames.Clear();
         foreach (var name in _profileStore.ListNames()) ProfileNames.Add(name);

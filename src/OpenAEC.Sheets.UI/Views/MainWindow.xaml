@@ -196,14 +196,23 @@
                                               IsChecked="{Binding Profile.Pdf.MaskCoincidentLines}" />
                                 </StackPanel>
                             </GroupBox>
-                            <GroupBox Header="Bestand" Style="{StaticResource SettingsGroup}" Width="300">
+                            <GroupBox Header="Bestand" Style="{StaticResource SettingsGroup}" Width="320">
                                 <StackPanel>
-                                    <CheckBox Content="Combineer alles in één PDF" Style="{StaticResource SettingCheck}"
-                                              IsChecked="{Binding Profile.Pdf.Combine}" />
-                                    <TextBlock Text="Bestandsnaam gecombineerde PDF:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
+                                    <RadioButton Content="Losse bestanden" GroupName="PdfFileMode" Margin="0,4"
+                                                 IsChecked="{Binding PdfSeparateFiles}" />
+                                    <RadioButton Content="Combineer alles in één PDF" GroupName="PdfFileMode" Margin="0,4"
+                                                 IsChecked="{Binding PdfCombineAll}" />
+                                    <RadioButton Content="Combineer per parameterwaarde:" GroupName="PdfFileMode" Margin="0,4"
+                                                 IsChecked="{Binding PdfCombineByParameter}" />
+                                    <ComboBox Margin="20,2,0,4"
+                                              ItemsSource="{Binding SheetParameterNames}"
+                                              SelectedItem="{Binding Profile.Pdf.GroupByParameter}"
+                                              IsEnabled="{Binding PdfCombineByParameter}"
+                                              ToolTip="Eén gecombineerde PDF per unieke waarde, bijv. per bouwdeel of discipline" />
+                                    <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
                                              Text="{Binding Profile.Pdf.CombinedFileName}"
-                                             IsEnabled="{Binding Profile.Pdf.Combine}" />
+                                             ToolTip="Bij 'combineer alles': de bestandsnaam. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde." />
                                 </StackPanel>
                             </GroupBox>
                         </WrapPanel>
@@ -384,6 +393,22 @@
                                             <ComboBoxItem Content="2nd level" />
                                         </ComboBox>
                                     </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Fase:" Style="{StaticResource SettingLabel}" Width="110" />
+                                        <ComboBox Width="140" ItemsSource="{Binding PhaseNames}"
+                                                  SelectedItem="{Binding Profile.Ifc.PhaseName}"
+                                                  ToolTip="Welke fase geëxporteerd wordt — (standaard) volgt de view/Revit-default" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Category mapping:" Style="{StaticResource SettingLabel}" Width="110" />
+                                        <ComboBox Width="140" ItemsSource="{Binding CategoryMappingNames}"
+                                                  SelectedItem="{Binding Profile.Ifc.CategoryMappingTemplate}"
+                                                  ToolTip="IFC category mapping template uit het document" />
+                                    </StackPanel>
+                                    <TextBlock Text="Of mapping-bestand (.txt):" Style="{StaticResource SettingLabel}" Margin="0,4,0,2" />
+                                    <TextBox Style="{StaticResource SearchBox}"
+                                             Text="{Binding Profile.Ifc.CategoryMappingFile}"
+                                             ToolTip="Pad naar categorymapping-bestand; wordt geïmporteerd en geactiveerd vóór export (gaat vóór de template-keuze)" />
                                     <CheckBox Content="Wanden/kolommen splitsen per bouwlaag" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Ifc.WallAndColumnSplitting}" />
                                     <CheckBox Content="Steel elements meenemen" Style="{StaticResource SettingCheck}"

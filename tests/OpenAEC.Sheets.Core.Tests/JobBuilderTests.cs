@@ -54,7 +54,7 @@ public class JobBuilderTests
     public void Build_CombinePdf_SingleJobWithAllIds()
     {
         var profile = new ExportProfile { EnabledFormats = [ExportFormat.Pdf] };
-        profile.Pdf.Combine = true;
+        profile.Pdf.FileMode = PdfFileMode.CombineAll;
         profile.Pdf.CombinedFileName = "bundel";
 
         var jobs = JobBuilder.Build(TwoSheets(), profile, "doc");
@@ -63,6 +63,47 @@ public class JobBuilderTests
         Assert.Equal([1L, 2L], job.ElementIds);
         Assert.Equal("bundel", job.FileName);
         Assert.Null(job.Item);
+    }
+
+    [Fact]
+    public void Build_CombineByParameter_OneJobPerGroupValue()
+    {
+        var items = TwoSheets();
+        items[0].Parameters["bouwdeel"] = "A";
+        items[1].Parameters["bouwdeel"] = "B";
+        items.Add(new SheetItem
+        {
+            Id = 3, Number = "TO_111", Name = "eerste verdieping",
+            Parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["bouwdeel"] = "A" },
+        });
+
+        var profile = new ExportProfile { EnabledFormats = [ExportFormat.Pdf] };
+        profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+        profile.Pdf.GroupByParameter = "bouwdeel";
+
+        var jobs = JobBuilder.Build(items, profile, "doc");
+
+        Assert.Equal(2, jobs.Count);
+        Assert.Equal([1L, 3L], jobs[0].ElementIds);
+        Assert.Equal("A", jobs[0].FileName);
+        Assert.Equal("A", jobs[0].GroupLabel);
+        Assert.Equal([2L], jobs[1].ElementIds);
+        Assert.Equal("B", jobs[1].FileName);
+    }
+
+    [Fact]
+    public void Build_CombineByParameter_MissingValueGroupsAsOverig_WithPrefix()
+    {
+        var profile = new ExportProfile { EnabledFormats = [ExportFormat.Pdf] };
+        profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+        profile.Pdf.GroupByParameter = "bestaat_niet";
+        profile.Pdf.CombinedFileName = "2786";
+
+        var jobs = JobBuilder.Build(TwoSheets(), profile, "doc");
+
+        var job = Assert.Single(jobs);
+        Assert.Equal("2786_overig", job.FileName);
+        Assert.Equal([1L, 2L], job.ElementIds);
     }
 
     [Fact]

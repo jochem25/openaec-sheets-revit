@@ -27,9 +27,22 @@ public enum RasterQuality
     Presentation,
 }
 
+public enum PdfFileMode
+{
+    /// <summary>Eén PDF per sheet/view.</summary>
+    Separate,
+    /// <summary>Alles gecombineerd in één PDF.</summary>
+    CombineAll,
+    /// <summary>Eén gecombineerde PDF per unieke waarde van een sheetparameter.</summary>
+    CombineByParameter,
+}
+
 public sealed class PdfSettings
 {
-    public bool Combine { get; set; }
+    public PdfFileMode FileMode { get; set; } = PdfFileMode.Separate;
+    /// <summary>Sheetparameter waarop gegroepeerd wordt bij CombineByParameter.</summary>
+    public string GroupByParameter { get; set; } = "";
+    /// <summary>Bestandsnaam bij CombineAll; bij CombineByParameter gebruikt als prefix.</summary>
     public string CombinedFileName { get; set; } = "";
     public bool VectorHiddenLines { get; set; } = true;
     public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
@@ -124,6 +137,12 @@ public sealed class IfcSettings
     public bool ExportRoomsInView { get; set; }
     /// <summary>Detailniveau tessellatie: 0.25 (laag) | 0.5 | 0.75 | 1.0 (hoogst)</summary>
     public double TessellationLevelOfDetail { get; set; } = 0.5;
+    /// <summary>Naam van de te exporteren fase. Leeg of "(standaard)" = Revit-default.</summary>
+    public string PhaseName { get; set; } = "";
+    /// <summary>Naam van een IFC category mapping template in het document. Leeg of "(standaard)" = actieve template.</summary>
+    public string CategoryMappingTemplate { get; set; } = "";
+    /// <summary>Pad naar een category mapping-bestand (.txt); wordt geïmporteerd en geactiveerd vóór export.</summary>
+    public string CategoryMappingFile { get; set; } = "";
 }
 
 public enum ImageFormat

@@ -110,6 +110,21 @@ public sealed class RevitGateway : IRevitGateway
                 sets[set.Name] = ids;
             }
 
+            var phaseNames = new List<string>();
+            foreach (Phase phase in doc.Phases)
+                phaseNames.Add(phase.Name);
+
+            IReadOnlyList<string> mappingNames;
+            try
+            {
+                mappingNames = IFCCategoryTemplate.ListNames(doc).ToList();
+            }
+            catch (Exception ex)
+            {
+                PluginLogger.LogException(ex);
+                mappingNames = [];
+            }
+
             return new ModelSnapshot
             {
                 Sheets = sheets,
@@ -117,6 +132,8 @@ public sealed class RevitGateway : IRevitGateway
                 ViewSheetSets = sets,
                 DwgSetupNames = SetupNames(doc, typeof(ExportDWGSettings)),
                 DgnSetupNames = SetupNames(doc, typeof(ExportDGNSettings)),
+                PhaseNames = phaseNames,
+                CategoryMappingNames = mappingNames,
             };
         });
 
@@ -418,15 +435,57 @@ public sealed class RevitGateway : IRevitGateway
             options.AddOption("ExportUserDefinedPsetsFileName", s.UserDefinedPsetsPath);
         }
 
+        // Fase: exporter leest "ActivePhaseId" (ElementId als string)
+        if (!IsDefaultChoice(s.PhaseName))
+        {
+            foreach (Phase phase in doc.Phases)
+            {
+                if (phase.Name != s.PhaseName) continue;
+                options.AddOption("ActivePhaseId", phase.Id.Value.ToString());
+                break;
+            }
+        }
+
         // IFC-export vereist een open transaction
         using var transaction = new Transaction(doc, "OpenAEC IFC Export");
         transaction.Start();
+
+        ApplyCategoryMapping(doc, s, options);
+
         doc.Export(folder, job.FileName, options);
         if (s.StoreIfcGuid)
             transaction.Commit();
         else
             transaction.RollBack();
     }
+
+    /// <summary>
+    /// Activeert de gekozen category mapping template (of importeert een mapping-bestand)
+    /// binnen de lopende transaction. Bij rollback wordt de vorige template hersteld.
+    /// </summary>
+    private static void ApplyCategoryMapping(Document doc, IfcSettings s, IFCExportOptions options)
+    {
+        IFCCategoryTemplate? template = null;
+
+        if (!string.IsNullOrWhiteSpace(s.CategoryMappingFile) && File.Exists(s.CategoryMappingFile))
+        {
+            var templateName = Path.GetFileNameWithoutExtension(s.CategoryMappingFile);
+            template = IFCCategoryTemplate.FindByName(doc, templateName)
+                       ?? IFCCategoryTemplate.ImportFromFile(doc, s.CategoryMappingFile, templateName);
+        }
+        else if (!IsDefaultChoice(s.CategoryMappingTemplate))
+        {
+            template = IFCCategoryTemplate.FindByName(doc, s.CategoryMappingTemplate);
+        }
+
+        if (template is null) return;
+
+        template.SetActiveTemplate(doc);
+        options.AddOption("CategoryMapping", template.Name);
+    }
+
+    private static bool IsDefaultChoice(string value) =>
+        string.IsNullOrWhiteSpace(value) || value.StartsWith('(');
 
     private static void AddBool(IFCExportOptions options, string name, bool value) =>
         options.AddOption(name, value ? "true" : "false");

@@ -31,7 +31,8 @@ public class ProfileStoreTests : IDisposable
             EnabledFormats = [ExportFormat.Pdf, ExportFormat.Ifc],
             SplitByFormat = false,
         };
-        profile.Pdf.Combine = true;
+        profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+        profile.Pdf.GroupByParameter = "bouwdeel";
         profile.Pdf.Colors = ColorMode.BlackAndWhite;
         profile.Ifc.Version = "IFC4RV";
 
@@ -43,7 +44,8 @@ public class ProfileStoreTests : IDisposable
         Assert.Equal("{Sheet Number}_{Current Revision}", loaded.NamingTemplate);
         Assert.Equal([ExportFormat.Pdf, ExportFormat.Ifc], loaded.EnabledFormats);
         Assert.False(loaded.SplitByFormat);
-        Assert.True(loaded.Pdf.Combine);
+        Assert.Equal(PdfFileMode.CombineByParameter, loaded.Pdf.FileMode);
+        Assert.Equal("bouwdeel", loaded.Pdf.GroupByParameter);
         Assert.Equal(ColorMode.BlackAndWhite, loaded.Pdf.Colors);
         Assert.Equal("IFC4RV", loaded.Ifc.Version);
     }
