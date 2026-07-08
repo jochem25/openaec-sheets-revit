@@ -61,6 +61,8 @@
             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}" FontSize="12" />
         </Border>
 
+        <Grid>
+
         <TabControl Background="{StaticResource SurfaceBrush}">
 
             <!-- ═══ TAB 1: SELECTIE ═══ -->
@@ -493,5 +495,20 @@
             </TabItem>
 
         </TabControl>
+
+        <!-- Laad-overlay tijdens het lezen van het model -->
+        <Border Background="#D9FFFFFF"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="380">
+                <TextBlock Text="{Binding LoadingText}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,12"
+                           FontSize="13"
+                           Foreground="{StaticResource TextBrush}" />
+                <ProgressBar IsIndeterminate="True" Height="14" Foreground="{StaticResource AmberBrush}" />
+            </StackPanel>
+        </Border>
+
+        </Grid>
     </DockPanel>
 </Window>

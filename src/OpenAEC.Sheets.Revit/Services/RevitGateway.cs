@@ -31,18 +31,27 @@ public sealed class RevitGateway : IRevitGateway
 
     // ── Lezen ───────────────────────────────────────────────────────────────
 
-    public Task<ModelSnapshot> GetSnapshotAsync() =>
+    public Task<ModelSnapshot> GetSnapshotAsync(IProgress<string>? progress = null) =>
         _handler.ExecuteAsync(app =>
         {
             var doc = app.ActiveUIDocument.Document;
 
+            // Alle titleblocks in één query i.p.v. één collector per sheet
+            var sizeBySheetId = CollectSheetSizes(doc);
+
+            var allSheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder)
+                .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             var sheets = new List<SheetItem>();
-            foreach (var sheet in new FilteredElementCollector(doc)
-                         .OfClass(typeof(ViewSheet))
-                         .Cast<ViewSheet>()
-                         .Where(s => !s.IsPlaceholder)
-                         .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase))
+            foreach (var sheet in allSheets)
             {
+                if (sheets.Count % 20 == 0)
+                    Report(progress, $"Sheets lezen ({sheets.Count}/{allSheets.Count})…");
+
                 var item = new SheetItem
                 {
                     Id = sheet.Id.Value,
@@ -50,13 +59,17 @@ public sealed class RevitGateway : IRevitGateway
                     Number = sheet.SheetNumber,
                     Name = sheet.Name,
                     Revision = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "",
-                    Size = GetSheetSize(doc, sheet),
+                    Size = sizeBySheetId.GetValueOrDefault(sheet.Id, ""),
                     Parameters = CollectParameters(sheet),
                 };
                 _itemCache[item.Id] = item;
                 sheets.Add(item);
             }
 
+            Report(progress, "Views lezen…");
+
+            // Views alleen lichtgewicht inlezen: volledige parametercollectie over
+            // honderden views was de grootste kostenpost bij het openen
             var views = new List<SheetItem>();
             foreach (var view in new FilteredElementCollector(doc)
                          .OfClass(typeof(View))
@@ -73,11 +86,17 @@ public sealed class RevitGateway : IRevitGateway
                     IsSheet = false,
                     Number = view.ViewType.ToString(),
                     Name = view.Name,
-                    Parameters = CollectParameters(view),
+                    Parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["View Name"] = view.Name,
+                        ["View Type"] = view.ViewType.ToString(),
+                    },
                 };
                 _itemCache[item.Id] = item;
                 views.Add(item);
             }
+
+            Report(progress, "View/Sheet Sets en exportsetups lezen…");
 
             var sets = new Dictionary<string, IReadOnlyList<long>>();
             foreach (var set in new FilteredElementCollector(doc)
@@ -100,6 +119,37 @@ public sealed class RevitGateway : IRevitGateway
                 DgnSetupNames = SetupNames(doc, typeof(ExportDGNSettings)),
             };
         });
+
+    /// <summary>
+    /// Meldt voortgang en pompt de WPF-dispatcher zodat de overlay rendert.
+    /// Revit-thread == WPF-thread: zonder pompen blijft de UI bevroren tijdens deze call.
+    /// Render-prioriteit verwerkt géén muis/toetsenbord-input, dus geen reentrancy.
+    /// </summary>
+    private static void Report(IProgress<string>? progress, string message)
+    {
+        if (progress is null) return;
+        progress.Report(message);
+        System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+            () => { }, System.Windows.Threading.DispatcherPriority.Render);
+    }
+
+    private static Dictionary<ElementId, string> CollectSheetSizes(Document doc)
+    {
+        var result = new Dictionary<ElementId, string>();
+        foreach (var titleBlock in new FilteredElementCollector(doc)
+                     .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                     .WhereElementIsNotElementType())
+        {
+            var sheetId = titleBlock.OwnerViewId;
+            if (sheetId == ElementId.InvalidElementId || result.ContainsKey(sheetId)) continue;
+
+            var width = titleBlock.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
+            var height = titleBlock.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
+            if (width > 0 && height > 0)
+                result[sheetId] = $"{FeetToMm(width)}x{FeetToMm(height)}";
+        }
+        return result;
+    }
 
     private static List<string> SetupNames(Document doc, Type setupType) =>
         new FilteredElementCollector(doc)
@@ -130,21 +180,6 @@ public sealed class RevitGateway : IRevitGateway
                 result[name] = value!;
         }
         return result;
-    }
-
-    private static string GetSheetSize(Document doc, ViewSheet sheet)
-    {
-        var titleBlock = new FilteredElementCollector(doc, sheet.Id)
-            .OfCategory(BuiltInCategory.OST_TitleBlocks)
-            .FirstElement();
-
-        if (titleBlock is null) return "";
-
-        var width = titleBlock.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
-        var height = titleBlock.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
-        if (width <= 0 || height <= 0) return "";
-
-        return $"{FeetToMm(width)}x{FeetToMm(height)}";
     }
 
     private static int FeetToMm(double feet) => (int)Math.Round(feet * 304.8);

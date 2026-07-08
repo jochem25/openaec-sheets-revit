@@ -278,12 +278,32 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ── Initialisatie ───────────────────────────────────────────────────────
 
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private string _loadingText = "Model wordt gelezen…";
+
     public async Task InitializeAsync()
     {
+        IsLoading = true;
+        LoadingText = "Model wordt gelezen…";
         StatusText = "Model wordt gelezen…";
+        try
+        {
+            await LoadSnapshotAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
 
+    private async Task LoadSnapshotAsync()
+    {
         // Eén Revit-rondreis voor alles — losse calls wachten elk op een idle-moment van Revit
-        var snapshot = await _gateway.GetSnapshotAsync();
+        var progress = new Progress<string>(text => LoadingText = text);
+        var snapshot = await _gateway.GetSnapshotAsync(progress);
 
         _sheetRows = snapshot.Sheets.Select(s => Track(new SheetRowViewModel(s))).ToList();
         _viewRows = snapshot.Views.Select(v => Track(new SheetRowViewModel(v))).ToList();

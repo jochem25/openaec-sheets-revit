@@ -14,7 +14,8 @@ public interface IRevitGateway
     /// Leest alles wat de UI nodig heeft in één Revit API-call:
     /// sheets, views, view/sheet sets en exportsetups.
     /// </summary>
-    Task<ModelSnapshot> GetSnapshotAsync();
+    /// <param name="progress">Fase-updates voor de laad-overlay ("Sheets lezen 40/120…").</param>
+    Task<ModelSnapshot> GetSnapshotAsync(IProgress<string>? progress = null);
 
     /// <summary>Voert de jobs één voor één uit op de Revit-thread en rapporteert voortgang.</summary>
     Task ExportAsync(
