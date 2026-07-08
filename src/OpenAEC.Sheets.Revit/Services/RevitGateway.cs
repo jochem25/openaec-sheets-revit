@@ -256,7 +256,23 @@ public sealed class RevitGateway : IRevitGateway
                 _ => RasterQualityType.High,
             },
             AlwaysUseRaster = !s.VectorHiddenLines,
-            PaperFormat = ExportPaperFormat.Default,
+            ExportQuality = s.QualityDpi switch
+            {
+                72 => PDFExportQualityType.DPI72,
+                144 => PDFExportQualityType.DPI144,
+                300 => PDFExportQualityType.DPI300,
+                1200 => PDFExportQualityType.DPI1200,
+                _ => PDFExportQualityType.DPI600,
+            },
+            PaperFormat = Enum.TryParse<ExportPaperFormat>(s.PaperFormat, out var paper)
+                ? paper
+                : ExportPaperFormat.Default,
+            PaperOrientation = s.Orientation switch
+            {
+                "Portrait" => PageOrientationType.Portrait,
+                "Landscape" => PageOrientationType.Landscape,
+                _ => PageOrientationType.Auto,
+            },
             ZoomType = s.FitToPage ? ZoomType.FitToPage : ZoomType.Zoom,
             HideCropBoundaries = s.HideCropBoundaries,
             HideReferencePlane = s.HideRefWorkPlanes,
@@ -286,6 +302,9 @@ public sealed class RevitGateway : IRevitGateway
         var options = FindSetup<ExportDWGSettings>(doc, s.ExportSetupName)?.GetDWGExportOptions()
                       ?? new DWGExportOptions();
         options.MergedViews = !s.ExportViewsOnSheetsAsXrefs;
+        options.SharedCoords = s.UseSharedCoordinates;
+        if (Enum.TryParse<ACADVersion>(s.FileVersion, out var version) && version != ACADVersion.Default)
+            options.FileVersion = version;
 
         doc.Export(folder, job.FileName, ids, options);
     }
@@ -325,7 +344,11 @@ public sealed class RevitGateway : IRevitGateway
     {
         options.MergedViews = merged;
         options.ImageFormat = s.LosslessImages ? DWFImageFormat.Lossless : DWFImageFormat.Lossy;
+        options.ImageQuality = Enum.TryParse<DWFImageQuality>(s.ImageQuality, out var quality)
+            ? quality
+            : DWFImageQuality.Default;
         options.ExportObjectData = s.ExportElementProperties;
+        options.ExportTexture = s.ExportTextures;
         options.CropBoxVisible = s.CropBoxVisible;
     }
 
@@ -340,6 +363,16 @@ public sealed class RevitGateway : IRevitGateway
                 ? NavisworksCoordinates.Shared
                 : NavisworksCoordinates.Internal,
             ExportLinks = s.ExportLinks,
+            DivideFileIntoLevels = s.DivideFileIntoLevels,
+            ExportElementIds = s.ExportElementIds,
+            ExportParts = s.ExportParts,
+            ExportRoomAsAttribute = s.ExportRoomAsAttribute,
+            ExportRoomGeometry = s.ExportRoomGeometry,
+            ExportUrls = s.ExportUrls,
+            ConvertLights = s.ConvertLights,
+            ConvertLinkedCADFormats = s.ConvertLinkedCadFormats,
+            FindMissingMaterials = s.FindMissingMaterials,
+            FacetingFactor = Math.Clamp(s.FacetingFactor, 0.1, 10.0),
         };
 
         doc.Export(folder, job.FileName, options);
@@ -374,6 +407,10 @@ public sealed class RevitGateway : IRevitGateway
         AddBool(options, "UseActiveViewGeometry", s.UseActiveViewGeometry);
         AddBool(options, "ExportBoundingBox", s.ExportBoundingBox);
         AddBool(options, "StoreIFCGUID", s.StoreIfcGuid);
+        AddBool(options, "ExportLinkedFiles", s.ExportLinkedFiles);
+        AddBool(options, "ExportRoomsInView", s.ExportRoomsInView);
+        options.AddOption("TessellationLevelOfDetail",
+            Math.Clamp(s.TessellationLevelOfDetail, 0.1, 1.0).ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         if (s.ExportUserDefinedPsets && !string.IsNullOrWhiteSpace(s.UserDefinedPsetsPath))
         {
@@ -396,20 +433,12 @@ public sealed class RevitGateway : IRevitGateway
 
     private static void ExportImg(Document doc, string folder, ExportJob job, IList<ElementId> ids, ImgSettings s)
     {
-        var fileType = s.Format switch
-        {
-            Core.Models.ImageFormat.Jpeg => ImageFileType.JPEGLossless,
-            Core.Models.ImageFormat.Bmp => ImageFileType.BMP,
-            Core.Models.ImageFormat.Tiff => ImageFileType.TIFF,
-            _ => ImageFileType.PNG,
-        };
-
         var options = new ImageExportOptions
         {
             ExportRange = ExportRange.SetOfViews,
             FilePath = Path.Combine(folder, job.FileName),
-            HLRandWFViewsFileType = fileType,
-            ShadowViewsFileType = fileType,
+            HLRandWFViewsFileType = ToImageFileType(s.NonShadedFormat),
+            ShadowViewsFileType = ToImageFileType(s.ShadedFormat),
             ImageResolution = s.Dpi switch
             {
                 72 => ImageResolution.DPI_72,
@@ -436,6 +465,14 @@ public sealed class RevitGateway : IRevitGateway
         options.SetViewsAndSheets(ids);
         doc.ExportImage(options);
     }
+
+    private static ImageFileType ToImageFileType(Core.Models.ImageFormat format) => format switch
+    {
+        Core.Models.ImageFormat.Jpeg => ImageFileType.JPEGLossless,
+        Core.Models.ImageFormat.Bmp => ImageFileType.BMP,
+        Core.Models.ImageFormat.Tiff => ImageFileType.TIFF,
+        _ => ImageFileType.PNG,
+    };
 
     private void ExportXml(string folder, ExportJob job, XmlSettings s)
     {

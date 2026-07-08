@@ -2,7 +2,7 @@
 
 > Laatst bijgewerkt: 2026-07-08 (2e iteratie na eerste runtime-test)
 
-## Huidige fase: v0.1 — eerste runtime-feedback verwerkt
+## Huidige fase: v0.1 — runtime-feedback verwerkt + formaat-opties op ProSheets-niveau
 
 ### Fixes na eerste test in Revit
 - Init las het model in 6+ losse ExternalEvent-rondreizen (traag, elk wacht op Revit-idle) → nu één `GetSnapshotAsync()`-call voor sheets, views, sets en setups

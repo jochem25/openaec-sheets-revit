@@ -107,6 +107,21 @@ public sealed partial class MainViewModel : ObservableObject
 
     public IReadOnlyList<string> IfcVersions { get; } = ["IFC2x2", "IFC2x3CV2", "IFC4RV", "IFC4DTV"];
 
+    public IReadOnlyList<string> PdfPaperFormats { get; } =
+    [
+        "Default",
+        "ISO_A0", "ISO_A1", "ISO_A2", "ISO_A3", "ISO_A4",
+        "ISO_B1", "ISO_B2", "ISO_B3", "ISO_B4",
+        "ANSI_A", "ANSI_B", "ANSI_C", "ANSI_D", "ANSI_E",
+        "ARCH_A", "ARCH_B", "ARCH_C", "ARCH_D", "ARCH_E",
+    ];
+
+    public IReadOnlyList<string> Orientations { get; } = ["Auto", "Portrait", "Landscape"];
+    public IReadOnlyList<int> PdfQualityDpis { get; } = [72, 144, 300, 600, 1200];
+    public IReadOnlyList<string> DwgVersions { get; } = ["Default", "R2018", "R2013", "R2010", "R2007"];
+    public IReadOnlyList<string> DwfQualities { get; } = ["Default", "Low", "Medium", "High"];
+    public IReadOnlyList<double> TessellationLevels { get; } = [0.25, 0.5, 0.75, 1.0];
+
     partial void OnSelectedProfileNameChanged(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;

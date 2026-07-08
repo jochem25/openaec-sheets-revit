@@ -34,6 +34,12 @@ public sealed class PdfSettings
     public bool VectorHiddenLines { get; set; } = true;
     public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
     public ColorMode Colors { get; set; } = ColorMode.Color;
+    /// <summary>Export-DPI: 72 | 144 | 300 | 600 | 1200</summary>
+    public int QualityDpi { get; set; } = 600;
+    /// <summary>"Default" (= sheetformaat) of ExportPaperFormat-naam: ISO_A0..A4, ISO_B1..B4, ANSI_A..E, ARCH_A..E3.</summary>
+    public string PaperFormat { get; set; } = "Default";
+    /// <summary>"Auto" | "Portrait" | "Landscape"</summary>
+    public string Orientation { get; set; } = "Auto";
     public bool FitToPage { get; set; } = true;
     public int ZoomPercentage { get; set; } = 100;
     public bool CenterPaperPlacement { get; set; } = true;
@@ -53,6 +59,9 @@ public sealed class DwgSettings
     /// <summary>Naam van een in het model opgeslagen DWG export setup. Leeg = Revit default.</summary>
     public string ExportSetupName { get; set; } = "";
     public bool ExportViewsOnSheetsAsXrefs { get; set; }
+    /// <summary>"Default" | "R2007" | "R2010" | "R2013" | "R2018" — overschrijft de setup-versie.</summary>
+    public string FileVersion { get; set; } = "Default";
+    public bool UseSharedCoordinates { get; set; }
 }
 
 public sealed class DgnSettings
@@ -66,7 +75,10 @@ public sealed class DwfSettings
     public bool Combine { get; set; }
     public string CombinedFileName { get; set; } = "";
     public bool LosslessImages { get; set; } = true;
+    /// <summary>"Default" | "Low" | "Medium" | "High" (alleen relevant bij lossy)</summary>
+    public string ImageQuality { get; set; } = "Default";
     public bool ExportElementProperties { get; set; } = true;
+    public bool ExportTextures { get; set; } = true;
     public bool CropBoxVisible { get; set; }
 }
 
@@ -75,6 +87,17 @@ public sealed class NwcSettings
     public bool ConvertElementProperties { get; set; } = true;
     public bool UseSharedCoordinates { get; set; } = true;
     public bool ExportLinks { get; set; }
+    public bool DivideFileIntoLevels { get; set; } = true;
+    public bool ExportElementIds { get; set; } = true;
+    public bool ExportParts { get; set; }
+    public bool ExportRoomAsAttribute { get; set; } = true;
+    public bool ExportRoomGeometry { get; set; }
+    public bool ExportUrls { get; set; }
+    public bool ConvertLights { get; set; }
+    public bool ConvertLinkedCadFormats { get; set; }
+    public bool FindMissingMaterials { get; set; }
+    /// <summary>Geometrie-nauwkeurigheid, 0.1 (grof) – 10 (fijn). Revit-default 1.0.</summary>
+    public double FacetingFactor { get; set; } = 1.0;
 }
 
 public sealed class IfcSettings
@@ -97,6 +120,10 @@ public sealed class IfcSettings
     public bool UseActiveViewGeometry { get; set; }
     public bool ExportBoundingBox { get; set; }
     public bool StoreIfcGuid { get; set; }
+    public bool ExportLinkedFiles { get; set; }
+    public bool ExportRoomsInView { get; set; }
+    /// <summary>Detailniveau tessellatie: 0.25 (laag) | 0.5 | 0.75 | 1.0 (hoogst)</summary>
+    public double TessellationLevelOfDetail { get; set; } = 0.5;
 }
 
 public enum ImageFormat
@@ -109,7 +136,10 @@ public enum ImageFormat
 
 public sealed class ImgSettings
 {
-    public ImageFormat Format { get; set; } = ImageFormat.Png;
+    /// <summary>Bestandstype voor shaded/gerenderde views.</summary>
+    public ImageFormat ShadedFormat { get; set; } = ImageFormat.Png;
+    /// <summary>Bestandstype voor lijnwerk-views (hidden line / wireframe).</summary>
+    public ImageFormat NonShadedFormat { get; set; } = ImageFormat.Png;
     public bool FitToPixelSize { get; set; } = true;
     public int PixelSize { get; set; } = 2048;
     public bool FitDirectionHorizontal { get; set; } = true;

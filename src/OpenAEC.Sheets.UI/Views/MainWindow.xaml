@@ -140,10 +140,42 @@
                                         <ComboBox Width="140" ItemsSource="{Binding Source={StaticResource ColorModes}}"
                                                   SelectedItem="{Binding Profile.Pdf.Colors}" />
                                     </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Kwaliteit (DPI):" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <ComboBox Width="140" ItemsSource="{Binding PdfQualityDpis}"
+                                                  SelectedItem="{Binding Profile.Pdf.QualityDpi}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Papier &amp; plaatsing" Style="{StaticResource SettingsGroup}" Width="280">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Papierformaat:" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <ComboBox Width="140" ItemsSource="{Binding PdfPaperFormats}"
+                                                  SelectedItem="{Binding Profile.Pdf.PaperFormat}"
+                                                  ToolTip="Default = formaat van de sheet zelf" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Oriëntatie:" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <ComboBox Width="140" ItemsSource="{Binding Orientations}"
+                                                  SelectedItem="{Binding Profile.Pdf.Orientation}" />
+                                    </StackPanel>
                                     <CheckBox Content="Fit to page" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Pdf.FitToPage}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Zoom %:" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <TextBox Width="60" Style="{StaticResource SearchBox}"
+                                                 Text="{Binding Profile.Pdf.ZoomPercentage}" />
+                                    </StackPanel>
                                     <CheckBox Content="Papier centreren" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Pdf.CenterPaperPlacement}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Offset X / Y (mm):" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <TextBox Width="55" Style="{StaticResource SearchBox}" Margin="0,0,6,0"
+                                                 Text="{Binding Profile.Pdf.OriginOffsetXMm}" />
+                                        <TextBox Width="55" Style="{StaticResource SearchBox}"
+                                                 Text="{Binding Profile.Pdf.OriginOffsetYMm}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </GroupBox>
                             <GroupBox Header="Opties" Style="{StaticResource SettingsGroup}" Width="300">
@@ -197,9 +229,21 @@
                                                Text="Setups beheer je in Revit via Export → DWG → Modify Export Setup." TextWrapping="Wrap" />
                                 </StackPanel>
                             </GroupBox>
-                            <CheckBox Content="Views op sheets exporteren als externe referenties (Xrefs)"
-                                      Style="{StaticResource SettingCheck}"
-                                      IsChecked="{Binding Profile.Dwg.ExportViewsOnSheetsAsXrefs}" />
+                            <GroupBox Header="Opties" Style="{StaticResource SettingsGroup}" Width="420" HorizontalAlignment="Left">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="AutoCAD-versie:" Style="{StaticResource SettingLabel}" Width="110" />
+                                        <ComboBox Width="140" ItemsSource="{Binding DwgVersions}"
+                                                  SelectedItem="{Binding Profile.Dwg.FileVersion}"
+                                                  ToolTip="Default = versie uit de export setup" />
+                                    </StackPanel>
+                                    <CheckBox Content="Shared coordinates gebruiken" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwg.UseSharedCoordinates}" />
+                                    <CheckBox Content="Views op sheets exporteren als externe referenties (Xrefs)"
+                                              Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwg.ExportViewsOnSheetsAsXrefs}" />
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
                     </TabItem>
 
@@ -237,8 +281,16 @@
                                               IsChecked="{Binding Profile.Dwf.UseDwfx}" />
                                     <CheckBox Content="Lossless afbeeldingen" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Dwf.LosslessImages}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Beeldkwaliteit:" Style="{StaticResource SettingLabel}" Width="90" />
+                                        <ComboBox Width="120" ItemsSource="{Binding DwfQualities}"
+                                                  SelectedItem="{Binding Profile.Dwf.ImageQuality}"
+                                                  ToolTip="Alleen relevant bij lossy afbeeldingen" />
+                                    </StackPanel>
                                     <CheckBox Content="Element properties exporteren" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Dwf.ExportElementProperties}" />
+                                    <CheckBox Content="Textures exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwf.ExportTextures}" />
                                     <CheckBox Content="Crop box zichtbaar" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Dwf.CropBoxVisible}" />
                                 </StackPanel>
@@ -264,8 +316,8 @@
                                 <TextBlock Text="NWC" FontWeight="SemiBold" Margin="4,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </TabItem.Header>
-                        <StackPanel Margin="10">
-                            <GroupBox Header="Navisworks" Style="{StaticResource SettingsGroup}" Width="360" HorizontalAlignment="Left">
+                        <WrapPanel Margin="10">
+                            <GroupBox Header="Algemeen" Style="{StaticResource SettingsGroup}" Width="320">
                                 <StackPanel>
                                     <CheckBox Content="Element properties converteren" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Nwc.ConvertElementProperties}" />
@@ -273,11 +325,39 @@
                                               IsChecked="{Binding Profile.Nwc.UseSharedCoordinates}" />
                                     <CheckBox Content="Gelinkte bestanden meenemen" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Nwc.ExportLinks}" />
+                                    <CheckBox Content="Gelinkte CAD-formaten converteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ConvertLinkedCadFormats}" />
+                                    <CheckBox Content="Bestand opdelen per bouwlaag" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.DivideFileIntoLevels}" />
+                                    <CheckBox Content="Element-ID's exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ExportElementIds}" />
                                     <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
                                                Text="Vereist de Navisworks-exporter voor Revit 2025." TextWrapping="Wrap" />
                                 </StackPanel>
                             </GroupBox>
-                        </StackPanel>
+                            <GroupBox Header="Inhoud &amp; geometrie" Style="{StaticResource SettingsGroup}" Width="320">
+                                <StackPanel>
+                                    <CheckBox Content="Parts exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ExportParts}" />
+                                    <CheckBox Content="Ruimten als attribuut" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ExportRoomAsAttribute}" />
+                                    <CheckBox Content="Ruimte-geometrie exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ExportRoomGeometry}" />
+                                    <CheckBox Content="URL's exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ExportUrls}" />
+                                    <CheckBox Content="Lichten converteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ConvertLights}" />
+                                    <CheckBox Content="Ontbrekende materialen zoeken" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.FindMissingMaterials}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Faceting factor:" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <TextBox Width="60" Style="{StaticResource SearchBox}"
+                                                 Text="{Binding Profile.Nwc.FacetingFactor}"
+                                                 ToolTip="0.1 (grof) t/m 10 (fijn), standaard 1.0" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </WrapPanel>
                     </TabItem>
 
                     <!-- IFC -->
@@ -342,6 +422,16 @@
                                               IsChecked="{Binding Profile.Ifc.ExportBoundingBox}" />
                                     <CheckBox Content="IFC GUID opslaan in parameter" Style="{StaticResource SettingCheck}"
                                               IsChecked="{Binding Profile.Ifc.StoreIfcGuid}" />
+                                    <CheckBox Content="Gelinkte bestanden exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportLinkedFiles}" />
+                                    <CheckBox Content="Ruimten in view exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportRoomsInView}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Detailniveau:" Style="{StaticResource SettingLabel}" Width="90" />
+                                        <ComboBox Width="90" ItemsSource="{Binding TessellationLevels}"
+                                                  SelectedItem="{Binding Profile.Ifc.TessellationLevelOfDetail}"
+                                                  ToolTip="Tessellatie: 0.25 = laag, 1.0 = hoogst" />
+                                    </StackPanel>
                                 </StackPanel>
                             </GroupBox>
                         </WrapPanel>
@@ -377,9 +467,14 @@
                             <GroupBox Header="Formaat" Style="{StaticResource SettingsGroup}" Width="300">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="Bestandstype:" Style="{StaticResource SettingLabel}" Width="90" />
+                                        <TextBlock Text="Shaded views:" Style="{StaticResource SettingLabel}" Width="110" />
                                         <ComboBox Width="120" ItemsSource="{Binding Source={StaticResource ImageFormats}}"
-                                                  SelectedItem="{Binding Profile.Img.Format}" />
+                                                  SelectedItem="{Binding Profile.Img.ShadedFormat}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Non-shaded views:" Style="{StaticResource SettingLabel}" Width="110" />
+                                        <ComboBox Width="120" ItemsSource="{Binding Source={StaticResource ImageFormats}}"
+                                                  SelectedItem="{Binding Profile.Img.NonShadedFormat}" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,2">
                                         <TextBlock Text="DPI:" Style="{StaticResource SettingLabel}" Width="90" />
