@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OpenAEC.Sheets.UI</RootNamespace>
+    <AssemblyName>OpenAEC.Sheets.UI</AssemblyName>
+    <Description>WPF views en viewmodels voor de Sheet Exporter</Description>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenAEC.Sheets.Core\OpenAEC.Sheets.Core.csproj" />
+  </ItemGroup>
+
+</Project>

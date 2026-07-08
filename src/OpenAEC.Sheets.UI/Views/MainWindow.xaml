@@ -1,0 +1,473 @@
+<Window x:Class="OpenAEC.Sheets.UI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        xmlns:models="clr-namespace:OpenAEC.Sheets.Core.Models;assembly=OpenAEC.Sheets.Core"
+        Title="OpenAEC Sheet Exporter"
+        Width="1150" Height="780"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBrush}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/OpenAEC.Sheets.UI;component/Styles/OpenAecTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <ObjectDataProvider x:Key="ColorModes" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="models:ColorMode" />
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+            <ObjectDataProvider x:Key="RasterQualities" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="models:RasterQuality" />
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+            <ObjectDataProvider x:Key="ImageFormats" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="models:ImageFormat" />
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel Margin="10">
+
+        <!-- Header: profielen -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                Padding="10,6" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Profiel:" Style="{StaticResource SettingLabel}" FontWeight="SemiBold" />
+                <ComboBox Width="200" Margin="0,0,8,0"
+                          ItemsSource="{Binding ProfileNames}"
+                          SelectedItem="{Binding SelectedProfileName}" />
+                <TextBox Width="160" Style="{StaticResource SearchBox}" Margin="0,0,8,0"
+                         Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Naam voor nieuw profiel (leeg = huidig profiel overschrijven)" />
+                <Button Content="Opslaan" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                        Command="{Binding SaveProfileCommand}" />
+                <Button Content="Verwijderen" Style="{StaticResource SecondaryButton}"
+                        Command="{Binding DeleteProfileCommand}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Statusbalk -->
+        <Border DockPanel.Dock="Bottom" Padding="4,6">
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}" FontSize="12" />
+        </Border>
+
+        <TabControl Background="{StaticResource SurfaceBrush}">
+
+            <!-- ═══ TAB 1: SELECTIE ═══ -->
+            <TabItem Header="  Selectie  ">
+                <DockPanel Margin="10">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <RadioButton Content="Sheets" IsChecked="{Binding ShowSheets}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <RadioButton Content="Views" VerticalAlignment="Center" Margin="0,0,20,0" />
+                        <TextBlock Text="View/Sheet Set:" Style="{StaticResource SettingLabel}" />
+                        <ComboBox Width="220" Margin="0,0,20,0"
+                                  ItemsSource="{Binding SetFilters}"
+                                  SelectedItem="{Binding SelectedSetFilter}" />
+                        <Button Content="Alles aan/uit" Style="{StaticResource SecondaryButton}" Margin="0,0,20,0"
+                                Command="{Binding SelectAllVisibleCommand}" />
+                        <TextBox Width="220" Style="{StaticResource SearchBox}"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Zoek op nummer of naam" />
+                    </StackPanel>
+
+                    <DataGrid ItemsSource="{Binding Rows}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              RowHeight="26"
+                              FontSize="12"
+                              SelectionMode="Extended"
+                              EnableRowVirtualization="True">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="36">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Nummer" Binding="{Binding Number}" Width="110" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Naam" Binding="{Binding Name}" Width="*" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Revisie" Binding="{Binding Revision}" Width="80" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Formaat" Binding="{Binding Size}" Width="100" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Eigen bestandsnaam (optioneel)"
+                                                Binding="{Binding CustomFileName, UpdateSourceTrigger=LostFocus}"
+                                                Width="260" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ═══ TAB 2: FORMATEN ═══ -->
+            <TabItem Header="  Formaten  ">
+                <TabControl Margin="10" TabStripPlacement="Top">
+
+                    <!-- PDF -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="PDF" IsChecked="{Binding PdfEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <WrapPanel Margin="10" Orientation="Horizontal">
+                            <GroupBox Header="Weergave" Style="{StaticResource SettingsGroup}" Width="280">
+                                <StackPanel>
+                                    <CheckBox Content="Hidden lines via vector processing" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.VectorHiddenLines}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Rasterkwaliteit:" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <ComboBox Width="140" ItemsSource="{Binding Source={StaticResource RasterQualities}}"
+                                                  SelectedItem="{Binding Profile.Pdf.RasterQuality}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                        <TextBlock Text="Kleuren:" Style="{StaticResource SettingLabel}" Width="100" />
+                                        <ComboBox Width="140" ItemsSource="{Binding Source={StaticResource ColorModes}}"
+                                                  SelectedItem="{Binding Profile.Pdf.Colors}" />
+                                    </StackPanel>
+                                    <CheckBox Content="Fit to page" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.FitToPage}" />
+                                    <CheckBox Content="Papier centreren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.CenterPaperPlacement}" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Opties" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <CheckBox Content="View links in blauw" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.ViewLinksInBlue}" />
+                                    <CheckBox Content="Verberg ref/work planes" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.HideRefWorkPlanes}" />
+                                    <CheckBox Content="Verberg unreferenced view tags" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.HideUnreferencedViewTags}" />
+                                    <CheckBox Content="Verberg scope boxes" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.HideScopeBoxes}" />
+                                    <CheckBox Content="Verberg crop boundaries" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.HideCropBoundaries}" />
+                                    <CheckBox Content="Halftone vervangen door dunne lijnen" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.ReplaceHalftoneWithThinLines}" />
+                                    <CheckBox Content="Region edges maskeren coincident lines" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.MaskCoincidentLines}" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Bestand" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <CheckBox Content="Combineer alles in één PDF" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Pdf.Combine}" />
+                                    <TextBlock Text="Bestandsnaam gecombineerde PDF:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
+                                    <TextBox Style="{StaticResource SearchBox}"
+                                             Text="{Binding Profile.Pdf.CombinedFileName}"
+                                             IsEnabled="{Binding Profile.Pdf.Combine}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </WrapPanel>
+                    </TabItem>
+
+                    <!-- DWG -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="DWG" IsChecked="{Binding DwgEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <StackPanel Margin="10">
+                            <GroupBox Header="Export setup" Style="{StaticResource SettingsGroup}" Width="420" HorizontalAlignment="Left">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Setup:" Style="{StaticResource SettingLabel}" Width="60" />
+                                        <ComboBox Width="300" ItemsSource="{Binding DwgSetupNames}"
+                                                  SelectedItem="{Binding Profile.Dwg.ExportSetupName}" />
+                                    </StackPanel>
+                                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                               Text="Setups beheer je in Revit via Export → DWG → Modify Export Setup." TextWrapping="Wrap" />
+                                </StackPanel>
+                            </GroupBox>
+                            <CheckBox Content="Views op sheets exporteren als externe referenties (Xrefs)"
+                                      Style="{StaticResource SettingCheck}"
+                                      IsChecked="{Binding Profile.Dwg.ExportViewsOnSheetsAsXrefs}" />
+                        </StackPanel>
+                    </TabItem>
+
+                    <!-- DGN -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="DGN" IsChecked="{Binding DgnEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <StackPanel Margin="10">
+                            <GroupBox Header="Export setup" Style="{StaticResource SettingsGroup}" Width="420" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Setup:" Style="{StaticResource SettingLabel}" Width="60" />
+                                    <ComboBox Width="300" ItemsSource="{Binding DgnSetupNames}"
+                                              SelectedItem="{Binding Profile.Dgn.ExportSetupName}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </TabItem>
+
+                    <!-- DWF -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="DWF" IsChecked="{Binding DwfEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <WrapPanel Margin="10">
+                            <GroupBox Header="Opties" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <CheckBox Content="DWFx (i.p.v. DWF)" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwf.UseDwfx}" />
+                                    <CheckBox Content="Lossless afbeeldingen" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwf.LosslessImages}" />
+                                    <CheckBox Content="Element properties exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwf.ExportElementProperties}" />
+                                    <CheckBox Content="Crop box zichtbaar" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwf.CropBoxVisible}" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Bestand" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <CheckBox Content="Combineer in één bestand" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Dwf.Combine}" />
+                                    <TextBlock Text="Bestandsnaam:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
+                                    <TextBox Style="{StaticResource SearchBox}"
+                                             Text="{Binding Profile.Dwf.CombinedFileName}"
+                                             IsEnabled="{Binding Profile.Dwf.Combine}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </WrapPanel>
+                    </TabItem>
+
+                    <!-- NWC -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="NWC" IsChecked="{Binding NwcEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <StackPanel Margin="10">
+                            <GroupBox Header="Navisworks" Style="{StaticResource SettingsGroup}" Width="360" HorizontalAlignment="Left">
+                                <StackPanel>
+                                    <CheckBox Content="Element properties converteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ConvertElementProperties}" />
+                                    <CheckBox Content="Shared coordinates gebruiken" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.UseSharedCoordinates}" />
+                                    <CheckBox Content="Gelinkte bestanden meenemen" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Nwc.ExportLinks}" />
+                                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                               Text="Vereist de Navisworks-exporter voor Revit 2025." TextWrapping="Wrap" />
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </TabItem>
+
+                    <!-- IFC -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="IFC" IsChecked="{Binding IfcEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <WrapPanel Margin="10">
+                            <GroupBox Header="Algemeen" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="IFC-versie:" Style="{StaticResource SettingLabel}" Width="110" />
+                                        <ComboBox Width="140" ItemsSource="{Binding IfcVersions}"
+                                                  SelectedItem="{Binding Profile.Ifc.Version}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Space boundaries:" Style="{StaticResource SettingLabel}" Width="110" />
+                                        <ComboBox Width="140" SelectedIndex="{Binding Profile.Ifc.SpaceBoundaries}">
+                                            <ComboBoxItem Content="Geen" />
+                                            <ComboBoxItem Content="1st level" />
+                                            <ComboBoxItem Content="2nd level" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <CheckBox Content="Wanden/kolommen splitsen per bouwlaag" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.WallAndColumnSplitting}" />
+                                    <CheckBox Content="Steel elements meenemen" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.IncludeSteelElements}" />
+                                    <CheckBox Content="Alleen zichtbare elementen in view" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.VisibleElementsOfCurrentView}" />
+                                    <CheckBox Content="2D-elementen exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.Export2DElements}" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Property sets" Style="{StaticResource SettingsGroup}" Width="320">
+                                <StackPanel>
+                                    <CheckBox Content="Revit property sets" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportInternalRevitPropertySets}" />
+                                    <CheckBox Content="IFC Common property sets" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportIfcCommonPropertySets}" />
+                                    <CheckBox Content="Base quantities" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportBaseQuantities}" />
+                                    <CheckBox Content="Schedules als property sets" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportSchedulesAsPsets}" />
+                                    <CheckBox Content="User defined property sets:" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportUserDefinedPsets}" />
+                                    <TextBox Style="{StaticResource SearchBox}"
+                                             Text="{Binding Profile.Ifc.UserDefinedPsetsPath}"
+                                             IsEnabled="{Binding Profile.Ifc.ExportUserDefinedPsets}"
+                                             ToolTip="Pad naar .txt met pset-definities" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Geavanceerd" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <CheckBox Content="Parts als building elements" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportPartsAsBuildingElements}" />
+                                    <CheckBox Content="Active view geometry gebruiken" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.UseActiveViewGeometry}" />
+                                    <CheckBox Content="Bounding box exporteren" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.ExportBoundingBox}" />
+                                    <CheckBox Content="IFC GUID opslaan in parameter" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Ifc.StoreIfcGuid}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </WrapPanel>
+                    </TabItem>
+
+                    <!-- IMG -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="IMG" IsChecked="{Binding ImgEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <WrapPanel Margin="10">
+                            <GroupBox Header="Afbeeldingsgrootte" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <CheckBox Content="Fit naar pixelgrootte:" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Img.FitToPixelSize}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Pixels:" Style="{StaticResource SettingLabel}" Width="70" />
+                                        <TextBox Width="90" Style="{StaticResource SearchBox}"
+                                                 Text="{Binding Profile.Img.PixelSize}" />
+                                    </StackPanel>
+                                    <CheckBox Content="Horizontale richting" Style="{StaticResource SettingCheck}"
+                                              IsChecked="{Binding Profile.Img.FitDirectionHorizontal}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Zoom %:" Style="{StaticResource SettingLabel}" Width="70" />
+                                        <TextBox Width="90" Style="{StaticResource SearchBox}"
+                                                 Text="{Binding Profile.Img.ZoomPercentage}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Formaat" Style="{StaticResource SettingsGroup}" Width="300">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Bestandstype:" Style="{StaticResource SettingLabel}" Width="90" />
+                                        <ComboBox Width="120" ItemsSource="{Binding Source={StaticResource ImageFormats}}"
+                                                  SelectedItem="{Binding Profile.Img.Format}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="DPI:" Style="{StaticResource SettingLabel}" Width="90" />
+                                        <ComboBox Width="120" SelectedItem="{Binding Profile.Img.Dpi}">
+                                            <sys:Int32>72</sys:Int32>
+                                            <sys:Int32>150</sys:Int32>
+                                            <sys:Int32>300</sys:Int32>
+                                            <sys:Int32>600</sys:Int32>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </WrapPanel>
+                    </TabItem>
+
+                    <!-- XML -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <CheckBox Content="XML" IsChecked="{Binding XmlEnabled}" FontWeight="SemiBold" />
+                        </TabItem.Header>
+                        <DockPanel Margin="10">
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Bestandsnaam:" Style="{StaticResource SettingLabel}" />
+                                <TextBox Width="260" Style="{StaticResource SearchBox}"
+                                         Text="{Binding Profile.Xml.FileName}"
+                                         ToolTip="Leeg = documentnaam" />
+                                <TextBlock Text="   Aangevinkte parameters worden per sheet/view als XML-element weggeschreven (leeg = alle)."
+                                           Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" />
+                            </StackPanel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding XmlParameters}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Vertical" MaxHeight="440" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
+                                                      Margin="4,2" FontSize="12" Width="240" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </TabItem>
+
+                </TabControl>
+            </TabItem>
+
+            <!-- ═══ TAB 3: EXPORTEREN ═══ -->
+            <TabItem Header="  Exporteren  ">
+                <DockPanel Margin="10">
+
+                    <StackPanel DockPanel.Dock="Top">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Exportmap:" Style="{StaticResource SettingLabel}" Width="110" />
+                            <TextBox Width="500" Style="{StaticResource SearchBox}"
+                                     Text="{Binding Profile.OutputFolder, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Content="Bladeren…" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                    Click="OnBrowseFolder" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Naamtemplate:" Style="{StaticResource SettingLabel}" Width="110" />
+                            <TextBox Width="500" Style="{StaticResource SearchBox}"
+                                     Text="{Binding Profile.NamingTemplate, UpdateSourceTrigger=PropertyChanged}" />
+                            <CheckBox Content="Submap per formaat" Margin="16,0,0,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding Profile.SplitByFormat}" />
+                        </StackPanel>
+                        <TextBlock Margin="114,0,0,8" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                   Text="Tokens: {Sheet Number}, {Sheet Name}, {Current Revision} — elke sheetparameter kan als {Naam} gebruikt worden. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="Voorbeeld vernieuwen" Style="{StaticResource SecondaryButton}"
+                                    Command="{Binding RefreshJobsCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                        <ProgressBar Height="16" Value="{Binding ProgressValue}" Maximum="100" />
+                        <DockPanel Margin="0,6,0,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="Annuleren" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                        Command="{Binding CancelExportCommand}"
+                                        Visibility="{Binding IsExporting, Converter={StaticResource BoolToVis}}" />
+                                <Button Content="Exporteren" Style="{StaticResource PrimaryButton}" MinWidth="120"
+                                        Command="{Binding ExportCommand}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center"
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="12" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <DataGrid ItemsSource="{Binding Jobs}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              IsReadOnly="True"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              RowHeight="24"
+                              FontSize="12">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nummer" Binding="{Binding Number}" Width="100" />
+                            <DataGridTextColumn Header="Naam" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Formaat" Binding="{Binding Format}" Width="80" />
+                            <DataGridTextColumn Header="Bestandsnaam" Binding="{Binding FileName}" Width="300" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="200" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
+</Window>

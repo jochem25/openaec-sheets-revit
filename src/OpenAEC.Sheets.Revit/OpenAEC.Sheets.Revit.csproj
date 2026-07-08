@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OpenAEC.Sheets.Revit</RootNamespace>
+    <AssemblyName>OpenAEC.Sheets.Revit</AssemblyName>
+    <Description>Revit 2025+ plugin — batch sheet/view export (PDF, DWG, DGN, DWF, NWC, IFC, IMG, XML)</Description>
+    <UseWPF>true</UseWPF>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenAEC.Sheets.Core\OpenAEC.Sheets.Core.csproj" />
+    <ProjectReference Include="..\OpenAEC.Sheets.UI\OpenAEC.Sheets.UI.csproj" />
+  </ItemGroup>
+
+  <!-- Revit API: use local install if available, otherwise NuGet stubs -->
+  <ItemGroup Condition="Exists('C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll')">
+    <Reference Include="RevitAPI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2025\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll')">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.*" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.*" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

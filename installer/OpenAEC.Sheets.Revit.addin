@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>OpenAEC Sheet Exporter</Name>
+    <Assembly>OpenAEC.Sheets\OpenAEC.Sheets.Revit.dll</Assembly>
+    <FullClassName>OpenAEC.Sheets.Revit.App</FullClassName>
+    <AddInId>B2C3D4E5-0000-5EE7-AE01-000000000001</AddInId>
+    <VendorId>OpenAEC</VendorId>
+    <VendorDescription>OpenAEC Foundation — open-aec.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>

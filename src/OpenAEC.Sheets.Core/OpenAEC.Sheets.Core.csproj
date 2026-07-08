@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OpenAEC.Sheets.Core</RootNamespace>
+    <AssemblyName>OpenAEC.Sheets.Core</AssemblyName>
+    <Description>Sheet Exporter core models, naming engine and profile store — no Revit dependency</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+</Project>
