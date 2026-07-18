@@ -212,7 +212,7 @@
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
                                              Text="{Binding Profile.Pdf.CombinedFileName}"
-                                             ToolTip="Bij 'combineer alles': de bestandsnaam. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde." />
+                                             ToolTip="Bij 'combineer alles': basisnaam; projectnaam en printset-naam worden er automatisch achter gezet. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde." />
                                 </StackPanel>
                             </GroupBox>
                         </WrapPanel>

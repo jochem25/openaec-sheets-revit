@@ -1,12 +1,17 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-07-08 (2e iteratie na eerste runtime-test)
+> Laatst bijgewerkt: 2026-07-18 (set-selectie + boekjes-naamgeving)
 
 ## Huidige fase: v0.1 — runtime-feedback verwerkt + formaat-opties op ProSheets-niveau incl. PDF group-by, IFC fase + category mapping
 
 ### Fixes na eerste test in Revit
 - Init las het model in 6+ losse ExternalEvent-rondreizen (traag, elk wacht op Revit-idle) → nu één `GetSnapshotAsync()`-call voor sheets, views, sets en setups
 - Formaat-tabs waren niet aanklikbaar: de CheckBox-header consumeerde de klik → header is nu checkbox + tekst, en klik op de checkbox selecteert ook de tab
+
+### Voltooid (18 juli)
+- Set-keuze in Selectie-tab selecteert nu automatisch precies de inhoud van die set (voorheen alleen filteren)
+- Gecombineerd PDF-boekje: bestandsnaam = basisnaam + `_<Project Name>_<printset-naam>` (lege velden vervallen); Project Name uit Project Information meegenomen in de model-snapshot
+- Tests: 24/24 groen
 
 ### Voltooid (8 juli)
 - Repo-opzet naar het patroon van openaec-bcf-revit (Core/UI/Revit, .NET 8, Revit 2025+)
@@ -26,6 +31,6 @@
 - Transmittal/manifest-export (JSON naar %TEMP%\3bm_exchange) voor koppeling BM Reports
 
 ## Build status
-- Core: compileert, 20/20 tests
+- Core: compileert, 24/24 tests
 - UI: compileert (WPF)
 - Revit: compileert tegen lokale Revit 2025 API

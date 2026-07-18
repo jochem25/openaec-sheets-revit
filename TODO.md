@@ -2,6 +2,7 @@
 
 ## v0.1 → v0.2
 - [ ] Runtime-test in Revit 2025 met 3BM-model (alle 8 formaten)
+- [ ] Runtime-test set-autoselectie + boekjes-naamgeving (2026-07-18; deploy wachtte op gesloten Revit)
 - [ ] IMG-export: bestandsnaam-suffix van Revit wegwerken (rename na export)
 - [ ] PDF paper size/orientation override per sheet (nu: sheet-formaat = Default)
 - [ ] Foutafhandeling NWC zonder Navisworks-exporter → nette melding

@@ -117,6 +117,26 @@ public class JobBuilderTests
     }
 
     [Fact]
+    public void Build_CombinePdf_AppendsProjectNameAndSetName()
+    {
+        var profile = new ExportProfile { EnabledFormats = [ExportFormat.Pdf] };
+        profile.Pdf.FileMode = PdfFileMode.CombineAll;
+        profile.Pdf.CombinedFileName = "2786";
+
+        var jobs = JobBuilder.Build(TwoSheets(), profile, "doc", "Woonhuis Kerkstraat", "TO-set");
+
+        Assert.Equal("2786_Woonhuis Kerkstraat_TO-set", Assert.Single(jobs).FileName);
+    }
+
+    [Fact]
+    public void BookletName_SkipsEmptyFields()
+    {
+        Assert.Equal("2786_Project", JobBuilder.BookletName("2786", "doc", "Project", null));
+        Assert.Equal("doc_Project_Set", JobBuilder.BookletName("", "doc", "Project", "Set"));
+        Assert.Equal("2786", JobBuilder.BookletName("2786", "doc", "", null));
+    }
+
+    [Fact]
     public void Build_NoItems_NoJobs()
     {
         var profile = new ExportProfile { EnabledFormats = [ExportFormat.Pdf] };

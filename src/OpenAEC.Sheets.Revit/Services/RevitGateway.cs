@@ -129,6 +129,7 @@ public sealed class RevitGateway : IRevitGateway
             {
                 Sheets = sheets,
                 Views = views,
+                ProjectName = doc.ProjectInformation?.Name ?? "",
                 ViewSheetSets = sets,
                 DwgSetupNames = SetupNames(doc, typeof(ExportDWGSettings)),
                 DgnSetupNames = SetupNames(doc, typeof(ExportDGNSettings)),

@@ -31,7 +31,9 @@ public static class JobBuilder
     /// Bouwt de lijst exportjobs uit de selectie en het profiel.
     /// Combine-formaten (PDF/DWF/XML) leveren één job voor alle items, anders één job per item.
     /// </summary>
-    public static List<ExportJob> Build(IReadOnlyList<SheetItem> items, ExportProfile profile, string documentTitle)
+    public static List<ExportJob> Build(
+        IReadOnlyList<SheetItem> items, ExportProfile profile, string documentTitle,
+        string projectName = "", string? sheetSetName = null)
     {
         var jobs = new List<ExportJob>();
         if (items.Count == 0) return jobs;
@@ -41,7 +43,8 @@ public static class JobBuilder
             switch (format)
             {
                 case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineAll:
-                    jobs.Add(CombinedJob(items, format, profile.Pdf.CombinedFileName, documentTitle));
+                    var bookletName = BookletName(profile.Pdf.CombinedFileName, documentTitle, projectName, sheetSetName);
+                    jobs.Add(CombinedJob(items, format, bookletName, documentTitle));
                     break;
                 case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineByParameter:
                     jobs.AddRange(GroupedJobs(items, format, profile.Pdf.GroupByParameter, profile.Pdf.CombinedFileName));
@@ -95,6 +98,18 @@ public static class JobBuilder
                 GroupLabel = label,
             };
         }
+    }
+
+    /// <summary>
+    /// Bestandsnaam van het gecombineerde boekje: basis (ingevulde naam of documenttitel),
+    /// dan projectnaam als tweede veld en printset-naam als derde veld; lege velden vervallen.
+    /// </summary>
+    public static string BookletName(string configuredName, string documentTitle, string projectName, string? sheetSetName)
+    {
+        var baseName = string.IsNullOrWhiteSpace(configuredName) ? documentTitle : configuredName.Trim();
+        var parts = new[] { baseName, projectName.Trim(), sheetSetName?.Trim() ?? "" }
+            .Where(p => !string.IsNullOrWhiteSpace(p));
+        return string.Join("_", parts);
     }
 
     private static ExportJob CombinedJob(IReadOnlyList<SheetItem> items, ExportFormat format, string configuredName, string documentTitle)

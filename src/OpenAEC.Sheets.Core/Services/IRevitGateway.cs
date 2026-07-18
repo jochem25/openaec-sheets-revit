@@ -32,6 +32,9 @@ public sealed class ModelSnapshot
     public IReadOnlyList<SheetItem> Sheets { get; init; } = [];
     public IReadOnlyList<SheetItem> Views { get; init; } = [];
 
+    /// <summary>Project Name uit de Revit Project Information.</summary>
+    public string ProjectName { get; init; } = "";
+
     /// <summary>View/Sheet Set-naam → ElementId.Value's van de views/sheets erin.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<long>> ViewSheetSets { get; init; }
         = new Dictionary<string, IReadOnlyList<long>>();

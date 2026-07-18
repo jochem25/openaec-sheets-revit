@@ -16,6 +16,7 @@ public sealed partial class MainViewModel : ObservableObject
     private List<SheetRowViewModel> _sheetRows = [];
     private List<SheetRowViewModel> _viewRows = [];
     private Dictionary<string, HashSet<long>> _setContents = new();
+    private string _projectName = "";
     private CancellationTokenSource? _exportCts;
 
     public MainViewModel(IRevitGateway gateway, ProfileStore profileStore)
@@ -47,7 +48,20 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnShowSheetsChanged(bool value) => ApplyFilter();
     partial void OnSearchTextChanged(string value) => ApplyFilter();
-    partial void OnSelectedSetFilterChanged(string value) => ApplyFilter();
+
+    partial void OnSelectedSetFilterChanged(string value)
+    {
+        SelectSetContents(value);
+        ApplyFilter();
+    }
+
+    /// <summary>Bij het kiezen van een set: precies de inhoud van die set selecteren.</summary>
+    private void SelectSetContents(string setName)
+    {
+        if (setName == ALL_SETS || !_setContents.TryGetValue(setName, out var ids)) return;
+        foreach (var row in _sheetRows.Concat(_viewRows))
+            row.IsSelected = ids.Contains(row.Item.Id);
+    }
 
     [RelayCommand]
     private void SelectAllVisible()
@@ -256,7 +270,8 @@ public sealed partial class MainViewModel : ObservableObject
         Profile.Xml.SelectedParameters = XmlParameters.Where(p => p.IsSelected).Select(p => p.Name).ToList();
 
         Jobs.Clear();
-        foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle))
+        var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
+        foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle, _projectName, setName))
             Jobs.Add(new JobRowViewModel(job));
 
         ProgressText = $"{Jobs.Count} bestanden te exporteren";
@@ -355,6 +370,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         _sheetRows = snapshot.Sheets.Select(s => Track(new SheetRowViewModel(s))).ToList();
         _viewRows = snapshot.Views.Select(v => Track(new SheetRowViewModel(v))).ToList();
+        _projectName = snapshot.ProjectName;
 
         SetFilters.Clear();
         SetFilters.Add(ALL_SETS);
