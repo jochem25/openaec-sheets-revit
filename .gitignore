@@ -5,3 +5,4 @@ installer/publish/
 *.user
 .vs/
 *.log
+installer/output/

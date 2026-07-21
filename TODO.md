@@ -14,7 +14,10 @@
 - [ ] Revisie-filter ("alleen sheets met revisie X")
 - [ ] Export-manifest JSON naar %TEMP%\3bm_exchange voor BM Reports transmittal
 
-- [ ] Installer (MSI/EXE) + versie-check
+- [x] Installer (EXE, Inno Setup, per-user) — `build\Build-Installer.ps1` (2026-07-21)
+- [ ] Installer: volledige install-test na sluiten Revit (Revit-open-check getest, file-deploy nog niet)
+- [ ] Versie-check / update-notificatie in de plugin
+- [ ] Installer code-signing (nu unsigned → SmartScreen-waarschuwing bij externe verspreiding)
 - [ ] Profielen delen via repo/share i.p.v. alleen %APPDATA%
 
 ## Bewust niet

@@ -1,6 +1,12 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-07-18 (set-selectie + boekjes-naamgeving)
+> Laatst bijgewerkt: 2026-07-21 (standalone installer)
+
+### Voltooid (21 juli)
+- Standalone installer (Inno Setup 6, per-user, geen admin): `build\Build-Installer.ps1` → `installer\output\OpenAEC-SheetExporter-<versie>-Setup.exe`
+- Componenten Revit 2025/2026, auto-aangevinkt op basis van aanwezige Addins-map; uninstaller in Windows Apps-lijst
+- Revit-open-detectie (WMI): interactief "sluit Revit"-prompt, silent mode breekt netjes af (getest: exit 1 met Revit open)
+- Nog open: volledige install-test zodra Revit dicht is; code-signing voor externe verspreiding
 
 ## Huidige fase: v0.1 — runtime-feedback verwerkt + formaat-opties op ProSheets-niveau incl. PDF group-by, IFC fase + category mapping
 
