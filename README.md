@@ -40,4 +40,6 @@ Start Revit 2025 → tab **OpenAEC** → **Sheet Exporter**.
 
 ## Licentie
 
-Intern 3BM Bouwkunde / OpenAEC Foundation.
+MIT — zie [LICENSE](LICENSE). © 2026 OpenAEC Foundation.
+
+Revit is een handelsmerk van Autodesk. ProSheets is een product van DiRoots; dit project is een onafhankelijke, eigen implementatie en bevat geen code of assets van derden.

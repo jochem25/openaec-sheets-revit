@@ -3,6 +3,7 @@
 > Laatst bijgewerkt: 2026-07-21 (standalone installer)
 
 ### Voltooid (21 juli)
+- Repo publiek gemaakt op GitHub (MIT-licentie toegevoegd; history vooraf gescand: geen secrets/binaries)
 - Standalone installer (Inno Setup 6, per-user, geen admin): `build\Build-Installer.ps1` → `installer\output\OpenAEC-SheetExporter-<versie>-Setup.exe`
 - Componenten Revit 2025/2026, auto-aangevinkt op basis van aanwezige Addins-map; uninstaller in Windows Apps-lijst
 - Revit-open-detectie (WMI): interactief "sluit Revit"-prompt, silent mode breekt netjes af (getest: exit 1 met Revit open)
