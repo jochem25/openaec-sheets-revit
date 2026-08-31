@@ -224,7 +224,7 @@
                                     </StackPanel>
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
-                                             Text="{Binding Profile.Pdf.CombinedFileName}"
+                                             Text="{Binding PdfCombinedFileName, UpdateSourceTrigger=PropertyChanged}"
                                              ToolTip="Bij 'combineer alles': basisnaam; projectnaam en printset-naam worden er automatisch achter gezet. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde.&#x0a;Tokens toegestaan, bijv. {Project Number}_{tekening_fase} — dan wordt niets automatisch achtergevoegd; met {Group} bepaal je zelf waar de groepswaarde komt. Tokens worden opgelost via het eerste blad van het boekje." />
                                 </StackPanel>
                             </GroupBox>

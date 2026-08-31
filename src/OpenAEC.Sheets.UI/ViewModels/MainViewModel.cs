@@ -230,11 +230,22 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnPdfSeparateFilesChanged(bool value)
     {
         if (value) Profile.Pdf.FileMode = PdfFileMode.Separate;
+        UpdateStatus();
     }
 
     partial void OnPdfCombineAllChanged(bool value)
     {
         if (value) Profile.Pdf.FileMode = PdfFileMode.CombineAll;
+        UpdateStatus();
+    }
+
+    // Boekjesnaam / prefix (↔ Profile.Pdf.CombinedFileName) — via VM zodat het voorbeeld live meeloopt
+    [ObservableProperty] private string _pdfCombinedFileName = "";
+
+    partial void OnPdfCombinedFileNameChanged(string value)
+    {
+        Profile.Pdf.CombinedFileName = value ?? "";
+        UpdateNamingPreview();
     }
 
     partial void OnPdfCombineByParameterChanged(bool value)
@@ -266,6 +277,7 @@ public sealed partial class MainViewModel : ObservableObject
         PdfCombineByParameter = Profile.Pdf.FileMode == PdfFileMode.CombineByParameter;
         PdfSplitGroupValues = Profile.Pdf.SplitGroupValues;
         PdfGroupValueSeparators = Profile.Pdf.GroupValueSeparators;
+        PdfCombinedFileName = Profile.Pdf.CombinedFileName;
     }
 
     private void ToggleFormat(ExportFormat format, bool enabled)
@@ -334,8 +346,25 @@ public sealed partial class MainViewModel : ObservableObject
             NamingPreview = "";
             return;
         }
-        var name = NamingEngine.Apply(Profile.NamingTemplate, sample.Item.Parameters, CurrentDocumentTokens());
-        NamingPreview = $"Voorbeeld ({sample.Number}): {NamingEngine.Sanitize(name)}";
+        var docTokens = CurrentDocumentTokens();
+        var name = NamingEngine.Apply(Profile.NamingTemplate, sample.Item.Parameters, docTokens);
+        var text = $"Voorbeeld ({sample.Number}): {NamingEngine.Sanitize(name)}";
+
+        // Gecombineerde PDF's volgen niet de template maar 'Bestandsnaam / prefix' op de PDF-tab —
+        // laat dat hier zien, anders lijkt de template "niets te doen".
+        if (PdfEnabled && Profile.Pdf.FileMode != PdfFileMode.Separate)
+        {
+            var items = SelectedItems();
+            if (items.Count == 0) items = [sample.Item];
+            var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
+            var booklet = Profile.Pdf.FileMode == PdfFileMode.CombineAll
+                ? NamingEngine.Sanitize(JobBuilder.BookletName(
+                    Profile.Pdf.CombinedFileName, _gateway.DocumentTitle, _projectName, setName, items[0], docTokens))
+                : JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, docTokens).FirstOrDefault()?.FileName ?? "";
+            text += $"   ·   Gecombineerde PDF (via 'Bestandsnaam / prefix' op de PDF-tab, niet via de template): {booklet}";
+        }
+
+        NamingPreview = text;
     }
 
     /// <summary>Token invoegen; de view geeft de caret-positie door, anders achteraan.</summary>

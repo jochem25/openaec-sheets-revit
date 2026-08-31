@@ -86,8 +86,13 @@ Checks:
     `{Group}_{Project Number}` → bestanden `plattegronden_2459.pdf`, `plattegronden-noord_2459.pdf`, …
     Prefix `{Project Number}` (zonder `{Group}`) → `2459_plattegronden.pdf` enz.
 
+17. Staat de PDF-modus op *Combineer alles* of *per parameterwaarde*, dan toont de voorbeeldregel
+    daarnaast de boekjesnaam mét de melding dat die uit "Bestandsnaam / prefix" (PDF-tab) komt en
+    niet uit de template. Typen in dat prefix-veld ververst het voorbeeld live.
+
 Checks:
 - [ ] Voorbeeldregel loopt live mee tijdens typen en na wijzigen van de selectie
+- [ ] In boekjes-modus is zichtbaar dat de template niet geldt en welke boekjesnaam er komt
 - [ ] Token-kiezer bevat bovenaan Project Name / Project Number / Document Title / Sheet Set, daarna alle sheet- én titleblock-parameters
 - [ ] Profiel opslaan/laden bewaart de template; oud profiel laadt met zijn eigen template
 
