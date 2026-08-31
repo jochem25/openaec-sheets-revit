@@ -15,7 +15,7 @@
 - [x] Batch-render: unieke bladen in één Export-call (naming rule sheetnummer) + exporttimer in statusregel
 - [x] Batch+timer runtime-getest door user ("het gaat nu wel sneller")
 - [x] Token-kiezer volgt Sheets/Views: viewparameters lazy ingelezen bij eerste wissel naar Views
-- [ ] Runtime-test view-tokens (testscript stap 30-31): wissel naar Views, kiezer toont viewparameters, template resolvet per view
+- [x] View-tokens runtime-getest door user ("het werkt")
 - [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
 
