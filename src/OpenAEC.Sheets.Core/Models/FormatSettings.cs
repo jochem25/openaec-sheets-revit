@@ -61,6 +61,14 @@ public sealed class PdfSettings
     /// situatietekening met "Z_*" in alle woningboekjes. Een patroon maakt nooit zelf een boekje aan.
     /// </summary>
     public bool ExpandWildcards { get; set; } = true;
+    /// <summary>
+    /// Bij CombineByParameter met overlappende boekjes: elk blad één keer door Revit laten
+    /// renderen (tijdelijke PDF per blad) en de boekjes daarna samenstellen door pagina's te
+    /// mergen, i.p.v. een blad dat in 77 boekjes zit 77× te exporteren. Zonder overlap gebeurt
+    /// niets bijzonders (native export). Bij een fout in het samenstellen valt een boekje
+    /// automatisch terug op de native gecombineerde export.
+    /// </summary>
+    public bool AssembleBooklets { get; set; } = true;
     public bool VectorHiddenLines { get; set; } = true;
     public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
     public ColorMode Colors { get; set; } = ColorMode.Color;

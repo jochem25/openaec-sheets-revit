@@ -153,13 +153,15 @@ public class JobBuilderTests
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Boekje"] = boekje },
     };
 
-    private static ExportProfile SplitProfile(bool split = true, string prefix = "", string? separators = null)
+    /// <summary>Combine-per-parameter-profiel voor groepeer-tests; samenstellen staat uit zodat de jobs de boekjes zelf zijn.</summary>
+    private static ExportProfile SplitProfile(bool split = true, string prefix = "", string? separators = null, bool assemble = false)
     {
         var profile = new ExportProfile { EnabledFormats = [ExportFormat.Pdf] };
         profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
         profile.Pdf.GroupByParameter = "Boekje";
         profile.Pdf.SplitGroupValues = split;
         profile.Pdf.CombinedFileName = prefix;
+        profile.Pdf.AssembleBooklets = assemble;
         if (separators is not null) profile.Pdf.GroupValueSeparators = separators;
         return profile;
     }
@@ -705,5 +707,76 @@ public class JobBuilderTests
     public void GlobToRegex_Cases(string pattern, string name, bool expected)
     {
         Assert.Equal(expected, JobBuilder.GlobToRegex(pattern).IsMatch(name));
+    }
+
+    // ── Samenstellen: bladen 1× renderen, boekjes mergen ──
+
+    [Fact]
+    public void AssemblyPlan_WithOverlap_PagesOnceInSelectionOrder_ThenBooklets()
+    {
+        var items = new List<SheetItem> { Sheet(1, "*"), Sheet(2, "a"), Sheet(3, "b"), Sheet(4, "a;b") };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(prefix: "2459", assemble: true), "doc");
+
+        var pages = jobs.Where(j => j.Kind == ExportJobKind.TempPage).ToList();
+        var booklets = jobs.Where(j => j.Kind == ExportJobKind.Assemble).ToList();
+
+        Assert.Equal(4, pages.Count);
+        Assert.Equal([1L, 2L, 3L, 4L], pages.Select(p => p.ElementIds.Single()).ToArray());
+        Assert.Equal(["page_1", "page_2", "page_3", "page_4"], pages.Select(p => p.FileName).ToArray());
+        Assert.All(pages, p => Assert.NotNull(p.Item));
+        Assert.True(jobs.IndexOf(pages[^1]) < jobs.IndexOf(booklets[0])); // eerst alle bladen, dan boekjes
+
+        Assert.Equal(["2459_a", "2459_b"], booklets.Select(b => b.FileName).ToArray());
+        Assert.Equal([1L, 2L, 4L], booklets[0].ElementIds);
+        Assert.Equal([1L, 3L, 4L], booklets[1].ElementIds);
+        Assert.Equal(["TO-1 - blad 1", "TO-2 - blad 2", "TO-4 - blad 4"], booklets[0].PageTitles);
+        Assert.Equal("a", booklets[0].GroupLabel);
+    }
+
+    [Fact]
+    public void AssemblyPlan_NoOverlap_KeepsNativeBooklets()
+    {
+        var items = new List<SheetItem> { Sheet(1, "a"), Sheet(2, "b") };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(assemble: true), "doc");
+
+        Assert.Equal(2, jobs.Count);
+        Assert.All(jobs, j => Assert.Equal(ExportJobKind.Normal, j.Kind));
+    }
+
+    [Fact]
+    public void AssemblyPlan_SettingOff_KeepsNativeBooklets_EvenWithOverlap()
+    {
+        var profile = SplitProfile(assemble: false);
+
+        var jobs = JobBuilder.Build([Sheet(1, "*"), Sheet(2, "a"), Sheet(3, "b")], profile, "doc");
+
+        Assert.Equal(2, jobs.Count);
+        Assert.All(jobs, j => Assert.Equal(ExportJobKind.Normal, j.Kind));
+        Assert.Equal([1L, 2L], jobs[0].ElementIds);
+    }
+
+    [Fact]
+    public void AssemblyPlan_OnlySheetsInBooklets_GetATempPage()
+    {
+        // Voorblad in a én b (overlap) → plan; blad 4 is niet geselecteerd voor deze boekjes en mag geen TempPage krijgen
+        var items = new List<SheetItem> { Sheet(1, "*"), Sheet(2, "a"), Sheet(3, "b") };
+        var booklets = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, SplitProfile().Pdf);
+        var itemsWithExtra = items.Append(Sheet(4, "c")).ToList();
+
+        var plan = JobBuilder.AssemblyPlan(itemsWithExtra, booklets);
+
+        Assert.Equal(2, plan.Count(j => j.Kind == ExportJobKind.Assemble));
+        Assert.Equal([1L, 2L, 3L], plan.Where(j => j.Kind == ExportJobKind.TempPage).Select(j => j.ElementIds.Single()).ToArray());
+    }
+
+    [Fact]
+    public void DisplayFormat_PerKind()
+    {
+        Assert.Equal("PDF", new ExportJob { Format = ExportFormat.Pdf }.DisplayFormat);
+        Assert.Equal("PDF (blad 1×)", new ExportJob { Format = ExportFormat.Pdf, Kind = ExportJobKind.TempPage }.DisplayFormat);
+        Assert.Equal("PDF (boekje)", new ExportJob { Format = ExportFormat.Pdf, Kind = ExportJobKind.Assemble }.DisplayFormat);
+        Assert.Equal("DWG", new ExportJob { Format = ExportFormat.Dwg }.DisplayFormat);
     }
 }

@@ -9,7 +9,9 @@
 - [x] Naamgeving: vaste tekst + tokens zichtbaar gemaakt (token-kiezer, live voorbeeld), document-tokens, titleblock-parameters als token, tokens in boekjesnaam (`{Group}`) — 63/63 tests
 - [x] Runtime-test op 2459 Parkview Gouda: boekjes-split + naamtemplate/boekjesnaam met tokens — user-ack "werkt goed" (2026-08-31)
 - [x] Wildcards (`*`, `?`) in de groepswaarde: voorblad in elk boekje, `Z_*` in alle woningboekjes; melding bij patroon zonder match — 85/85 tests
-- [ ] Runtime-test wildcards volgens testscript stap 18-22 (voorblad `*`, `plattegronden-*`, patroon zonder match)
+- [x] Wildcards runtime-getest door user ("werkt perfect")
+- [x] Bladen 1× renderen + boekjes samenstellen (PDFsharp) i.p.v. 77× hetzelfde blad exporteren — 94/94 tests
+- [ ] Runtime-test samenstellen (testscript stap 23-26): snelheid, bookmarks, fallback; let op eventueel Microsoft.Extensions.*-versieconflict met Revit 2025 (log in `%TEMP%\OpenAEC.Sheets.log`)
 - [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
 

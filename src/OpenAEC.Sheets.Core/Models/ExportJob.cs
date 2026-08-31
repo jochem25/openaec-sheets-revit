@@ -2,12 +2,28 @@ using OpenAEC.Sheets.Core.Naming;
 
 namespace OpenAEC.Sheets.Core.Models;
 
+/// <summary>Soort exportjob — bepaalt hoe de exportlaag hem uitvoert.</summary>
+public enum ExportJobKind
+{
+    /// <summary>Gewone export via Revit naar de uitvoermap.</summary>
+    Normal,
+    /// <summary>Eén blad, eenmalig door Revit gerenderd naar een tijdelijke PDF (bron voor <see cref="Assemble"/>).</summary>
+    TempPage,
+    /// <summary>Boekje samengesteld uit tijdelijke bladen (geen Revit-render); fallback = native combine.</summary>
+    Assemble,
+}
+
 /// <summary>
 /// Eén uit te voeren exportactie: één of meer views/sheets naar één bestand.
 /// </summary>
 public sealed class ExportJob
 {
     public ExportFormat Format { get; init; }
+
+    public ExportJobKind Kind { get; init; } = ExportJobKind.Normal;
+
+    /// <summary>Bij <see cref="ExportJobKind.Assemble"/>: bookmark-titel per pagina, parallel aan <see cref="ElementIds"/>.</summary>
+    public IReadOnlyList<string> PageTitles { get; init; } = [];
 
     /// <summary>Revit ElementId.Value's van de views/sheets in deze job.</summary>
     public List<long> ElementIds { get; init; } = [];
@@ -23,6 +39,13 @@ public sealed class ExportJob
 
     public string DisplayNumber => Item?.Number ?? "—";
     public string DisplayName => Item?.Name ?? GroupLabel ?? "(gecombineerd)";
+
+    public string DisplayFormat => Kind switch
+    {
+        ExportJobKind.TempPage => "PDF (blad 1×)",
+        ExportJobKind.Assemble => "PDF (boekje)",
+        _ => Format.ToString().ToUpperInvariant(),
+    };
 }
 
 public static class JobBuilder
@@ -55,7 +78,8 @@ public static class JobBuilder
                     jobs.Add(CombinedJob(items, format, bookletName));
                     break;
                 case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineByParameter:
-                    jobs.AddRange(GroupedJobs(items, format, profile.Pdf, docTokens));
+                    var grouped = GroupedJobs(items, format, profile.Pdf, docTokens);
+                    jobs.AddRange(profile.Pdf.AssembleBooklets ? AssemblyPlan(items, grouped) : grouped);
                     break;
                 case ExportFormat.Dwf when profile.Dwf.Combine:
                     jobs.Add(CombinedJob(items, format,
@@ -78,6 +102,59 @@ public static class JobBuilder
         }
 
         return jobs;
+    }
+
+    /// <summary>Bestandsnaam (zonder extensie) van de tijdelijke PDF van één blad.</summary>
+    public static string TempPageName(long elementId) => "page_" + elementId;
+
+    /// <summary>Bookmark-titel van een blad in een samengesteld boekje.</summary>
+    public static string PageTitle(SheetItem item) =>
+        string.Join(" - ", new[] { item.Number, item.Name }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    /// <summary>
+    /// Zet boekjes met overlappende bladen om in: eerst elk gebruikt blad één keer als
+    /// <see cref="ExportJobKind.TempPage"/> (selectievolgorde), daarna elk boekje als
+    /// <see cref="ExportJobKind.Assemble"/> met dezelfde naam/volgorde als de native variant.
+    /// Zonder overlap (geen blad in meer dan één boekje) komen de boekjes ongewijzigd terug.
+    /// </summary>
+    public static List<ExportJob> AssemblyPlan(IReadOnlyList<SheetItem> items, IReadOnlyList<ExportJob> booklets)
+    {
+        var usage = new Dictionary<long, int>();
+        foreach (var id in booklets.SelectMany(b => b.ElementIds))
+            usage[id] = usage.GetValueOrDefault(id) + 1;
+
+        if (!usage.Values.Any(n => n > 1)) return booklets.ToList();
+
+        var byId = items.ToDictionary(i => i.Id);
+        var plan = new List<ExportJob>();
+
+        foreach (var item in items)
+        {
+            if (!usage.ContainsKey(item.Id)) continue;
+            plan.Add(new ExportJob
+            {
+                Format = ExportFormat.Pdf,
+                Kind = ExportJobKind.TempPage,
+                ElementIds = [item.Id],
+                Item = item,
+                FileName = TempPageName(item.Id),
+            });
+        }
+
+        foreach (var booklet in booklets)
+        {
+            plan.Add(new ExportJob
+            {
+                Format = ExportFormat.Pdf,
+                Kind = ExportJobKind.Assemble,
+                ElementIds = booklet.ElementIds,
+                FileName = booklet.FileName,
+                GroupLabel = booklet.GroupLabel,
+                PageTitles = booklet.ElementIds.Select(id => byId.TryGetValue(id, out var it) ? PageTitle(it) : "").ToList(),
+            });
+        }
+
+        return plan;
     }
 
     /// <summary>Document-tokens die voor elk blad gelden (naast de sheetparameters).</summary>

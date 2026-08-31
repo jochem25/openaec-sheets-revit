@@ -19,6 +19,6 @@ public sealed partial class JobRowViewModel : ObservableObject
 
     public string Number => Job.DisplayNumber;
     public string Name => Job.DisplayName;
-    public string Format => Job.Format.ToString().ToUpperInvariant();
+    public string Format => Job.DisplayFormat;
     public string FileName => Job.FileName;
 }

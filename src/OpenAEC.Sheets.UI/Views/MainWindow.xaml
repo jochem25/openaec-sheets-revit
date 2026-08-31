@@ -229,6 +229,11 @@
                                                   IsEnabled="{Binding PdfSplitGroupValues}"
                                                   ToolTip="Een gesplitst deel met * of ? is een patroon dat tegen de concrete boekjesnamen van de selectie wordt geëxpandeerd: '*' = voorblad in elk boekje, 'Z_*' = situatietekening in alle woningboekjes, '*_E1;*_E2' = in de E1- en E2-boekjes. Een patroon maakt nooit zelf een boekje aan; zonder match volgt een melding in de statusregel." />
                                     </StackPanel>
+                                    <CheckBox Content="Bladen 1× renderen, boekjes samenstellen" Style="{StaticResource SettingCheck}"
+                                              Margin="20,2,0,2"
+                                              IsChecked="{Binding PdfAssembleBooklets}"
+                                              IsEnabled="{Binding PdfCombineByParameter}"
+                                              ToolTip="Zit een blad in meerdere boekjes (voorblad, situatie), dan rendert Revit elk blad maar één keer naar een tijdelijke PDF; de boekjes worden daarna samengesteld door pagina's te mergen (met een bookmark per blad). Veel sneller bij veel overlappende boekjes. Zonder overlap gebeurt niets bijzonders; mislukt het samenstellen, dan wordt dat boekje alsnog native door Revit geëxporteerd." />
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
                                              Text="{Binding PdfCombinedFileName, UpdateSourceTrigger=PropertyChanged}"

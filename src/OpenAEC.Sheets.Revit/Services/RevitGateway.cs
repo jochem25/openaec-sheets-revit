@@ -230,32 +230,104 @@ public sealed class RevitGateway : IRevitGateway
         IProgress<ExportProgress> progress,
         CancellationToken cancellationToken)
     {
-        for (var i = 0; i < jobs.Count; i++)
+        // Tijdelijke map voor eenmalig gerenderde bladen (Kind = TempPage); altijd opgeruimd
+        string? tempDir = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var job = jobs[i];
-            string? error = null;
-            try
+            for (var i = 0; i < jobs.Count; i++)
             {
-                await _handler.ExecuteAsync(app => ExecuteJob(app.ActiveUIDocument.Document, job, profile, outputFolder));
-            }
-            catch (Exception ex)
-            {
-                PluginLogger.LogException(ex);
-                error = ex.Message;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            progress.Report(new ExportProgress(i, jobs.Count, job.FileName, error));
+                var job = jobs[i];
+                string? error = null;
+                try
+                {
+                    switch (job.Kind)
+                    {
+                        case ExportJobKind.TempPage:
+                            tempDir ??= CreateTempDir();
+                            var pageDir = tempDir;
+                            await _handler.ExecuteAsync(app => ExportPdf(
+                                app.ActiveUIDocument.Document, pageDir, job,
+                                job.ElementIds.Select(id => new ElementId(id)).ToList(), profile.Pdf));
+                            break;
+
+                        case ExportJobKind.Assemble:
+                            await AssembleBookletAsync(job, profile, outputFolder, tempDir);
+                            break;
+
+                        default:
+                            await _handler.ExecuteAsync(app => ExecuteJob(app.ActiveUIDocument.Document, job, profile, outputFolder));
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    PluginLogger.LogException(ex);
+                    error = ex.Message;
+                }
+
+                progress.Report(new ExportProgress(i, jobs.Count, job.FileName, error));
+            }
         }
+        finally
+        {
+            if (tempDir is not null)
+            {
+                try { Directory.Delete(tempDir, true); }
+                catch (Exception ex) { PluginLogger.LogException(ex); }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Boekje samenstellen uit de tijdelijke bladen (buiten de Revit-thread). Lukt dat niet
+    /// (ontbrekend blad, onleesbare PDF), dan native gecombineerd exporteren via Revit.
+    /// </summary>
+    private async Task AssembleBookletAsync(ExportJob job, ExportProfile profile, string baseFolder, string? tempDir)
+    {
+        var folder = FolderFor(profile, baseFolder, ExportFormat.Pdf);
+        var target = Path.Combine(folder, job.FileName + ".pdf");
+
+        try
+        {
+            if (tempDir is null) throw new InvalidOperationException("Geen tijdelijke bladen beschikbaar.");
+            var pages = job.ElementIds
+                .Select((id, i) => (
+                    Path: Path.Combine(tempDir, JobBuilder.TempPageName(id) + ".pdf"),
+                    Title: i < job.PageTitles.Count ? job.PageTitles[i] : ""))
+                .ToList();
+            await Task.Run(() => PdfAssembler.Assemble(pages, target));
+        }
+        catch (Exception ex)
+        {
+            PluginLogger.LogException(ex);
+            PluginLogger.Log($"Samenstellen van '{job.FileName}' mislukt, terugvallen op native export.");
+            await _handler.ExecuteAsync(app => ExportPdf(
+                app.ActiveUIDocument.Document, folder, job,
+                job.ElementIds.Select(id => new ElementId(id)).ToList(), profile.Pdf));
+        }
+    }
+
+    private static string CreateTempDir()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "OpenAEC.Sheets", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    private static string FolderFor(ExportProfile profile, string baseFolder, ExportFormat format)
+    {
+        var folder = profile.SplitByFormat
+            ? Path.Combine(baseFolder, format.ToString().ToUpperInvariant())
+            : baseFolder;
+        Directory.CreateDirectory(folder);
+        return folder;
     }
 
     private void ExecuteJob(Document doc, ExportJob job, ExportProfile profile, string baseFolder)
     {
-        var folder = profile.SplitByFormat
-            ? Path.Combine(baseFolder, job.Format.ToString().ToUpperInvariant())
-            : baseFolder;
-        Directory.CreateDirectory(folder);
+        var folder = FolderFor(profile, baseFolder, job.Format);
 
         var ids = job.ElementIds.Select(id => new ElementId(id)).ToList();
 

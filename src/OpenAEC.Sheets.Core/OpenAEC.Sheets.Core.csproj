@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <!-- PDF-boekjes samenstellen uit los geëxporteerde bladen (MIT) -->
+    <PackageReference Include="PDFsharp" Version="6.1.1" />
   </ItemGroup>
 
 </Project>

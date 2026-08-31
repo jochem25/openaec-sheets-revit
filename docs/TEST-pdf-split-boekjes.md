@@ -83,6 +83,20 @@ Voeg toe aan de tabel hierboven (of aan het Parkview-model):
 21. Exporteren → open `2459_details.pdf`: voorblad, TO-300, legenda — legenda staat er 1×.
 22. Checkbox uit → `*`, `plattegronden-*` enz. worden letterlijke groepen (bestandsnaam met `-` i.p.v. `*` door Sanitize); geen waarschuwing.
 
+## Samenstellen: bladen 1× renderen
+
+23. PDF-tab: ☑ **Bladen 1× renderen, boekjes samenstellen** (standaard aan). Selectie met voorblad `*` + ≥ 3 boekjes.
+    *Vernieuwen* → grid toont eerst rijen `PDF (blad 1×)` (één per uniek blad, selectievolgorde), daarna
+    `PDF (boekje)`; voortgangstekst: `N bestanden te exporteren (M bladen worden 1× gerenderd en tot boekjes samengesteld)`.
+24. Exporteren → alleen de boekjes staan in de uitvoermap (geen `page_*.pdf`); `%TEMP%\OpenAEC.Sheets\` is leeg na afloop.
+    Open een boekje: paginavolgorde = selectievolgorde, bladwijzerpaneel toont per blad `nummer - naam`.
+    Vergelijk visueel met een native export (checkbox uit): vectorlijnen, kleuren en bladformaat identiek.
+25. Tijdmeting: zelfde selectie met checkbox uit vs aan — bij 77 boekjes met voorblad moet "aan" ruwweg
+    (unieke bladen + 77 merges) kosten i.p.v. (77 × pagina's) renders.
+26. Fallback: checkbox aan, wis tijdens de export handmatig een `page_*.pdf` uit de tempmap → dat boekje krijgt
+    toch een bestand (native), log `%TEMP%\OpenAEC.Sheets.log` meldt "Samenstellen van '…' mislukt, terugvallen op native export".
+    Zonder overlap (geen `*`, geen dubbel blad) verschijnen géén `(blad 1×)`-rijen: gedrag als voorheen.
+
 ## Naamgeving: vaste tekst, tokens, boekjesnaam
 
 10. Tab *Exporteren* → **Naamtemplate** leegmaken en typen: `TO_` → de voorbeeldregel eronder toont

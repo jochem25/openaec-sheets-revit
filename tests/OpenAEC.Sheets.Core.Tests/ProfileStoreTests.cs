@@ -84,6 +84,7 @@ public class ProfileStoreTests : IDisposable
         profile.Pdf.SplitGroupValues = true;
         profile.Pdf.GroupValueSeparators = "|";
         profile.Pdf.ExpandWildcards = false;
+        profile.Pdf.AssembleBooklets = false;
 
         _store.Save(profile);
         var loaded = _store.Load("boekjes");
@@ -92,6 +93,7 @@ public class ProfileStoreTests : IDisposable
         Assert.True(loaded.Pdf.SplitGroupValues);
         Assert.Equal("|", loaded.Pdf.GroupValueSeparators);
         Assert.False(loaded.Pdf.ExpandWildcards);
+        Assert.False(loaded.Pdf.AssembleBooklets);
         Assert.Contains("\"expand_wildcards\": false", File.ReadAllText(Path.Combine(_tempDir, "boekjes.json")));
 
         var json = File.ReadAllText(Path.Combine(_tempDir, "boekjes.json"));
@@ -124,5 +126,6 @@ public class ProfileStoreTests : IDisposable
         Assert.False(loaded.Pdf.SplitGroupValues);
         Assert.Equal(PdfSettings.DefaultGroupValueSeparators, loaded.Pdf.GroupValueSeparators);
         Assert.True(loaded.Pdf.ExpandWildcards);
+        Assert.True(loaded.Pdf.AssembleBooklets);
     }
 }

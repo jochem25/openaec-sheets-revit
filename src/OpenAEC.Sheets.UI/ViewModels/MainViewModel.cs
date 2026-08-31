@@ -281,6 +281,15 @@ public sealed partial class MainViewModel : ObservableObject
         UpdateStatus();
     }
 
+    // Bladen één keer renderen en boekjes samenstellen (↔ Profile.Pdf.AssembleBooklets)
+    [ObservableProperty] private bool _pdfAssembleBooklets = true;
+
+    partial void OnPdfAssembleBookletsChanged(bool value)
+    {
+        Profile.Pdf.AssembleBooklets = value;
+        UpdateStatus();
+    }
+
     // Wildcards (* en ?) in gesplitste tokens expanderen tegen de concrete boekjesnamen (↔ Profile.Pdf.ExpandWildcards)
     [ObservableProperty] private bool _pdfExpandWildcards = true;
 
@@ -298,6 +307,7 @@ public sealed partial class MainViewModel : ObservableObject
         PdfSplitGroupValues = Profile.Pdf.SplitGroupValues;
         PdfGroupValueSeparators = Profile.Pdf.GroupValueSeparators;
         PdfExpandWildcards = Profile.Pdf.ExpandWildcards;
+        PdfAssembleBooklets = Profile.Pdf.AssembleBooklets;
         PdfCombinedFileName = Profile.Pdf.CombinedFileName;
     }
 
@@ -426,7 +436,10 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle, _projectName, setName, _projectNumber))
             Jobs.Add(new JobRowViewModel(job));
 
-        ProgressText = $"{Jobs.Count} bestanden te exporteren";
+        var tempPages = Jobs.Count(j => j.Job.Kind == ExportJobKind.TempPage);
+        ProgressText = tempPages == 0
+            ? $"{Jobs.Count} bestanden te exporteren"
+            : $"{Jobs.Count - tempPages} bestanden te exporteren ({tempPages} bladen worden 1× gerenderd en tot boekjes samengesteld)";
         UpdateStatus(); // groepeer-parameter is direct aan Profile.Pdf gebonden → hier de boekjes-telling verversen
     }
 
@@ -466,8 +479,9 @@ public sealed partial class MainViewModel : ObservableObject
             var jobs = Jobs.Select(j => j.Job).ToList();
             await _gateway.ExportAsync(jobs, Profile, Profile.OutputFolder, progress, _exportCts.Token);
             var failures = Jobs.Count(j => j.Status.StartsWith('✗'));
+            var files = jobs.Count(j => j.Kind != ExportJobKind.TempPage);
             ProgressText = failures == 0
-                ? $"Klaar — {jobs.Count} bestanden geëxporteerd naar {Profile.OutputFolder}"
+                ? $"Klaar — {files} bestanden geëxporteerd naar {Profile.OutputFolder}"
                 : $"Klaar met {failures} fout(en) — zie statuskolom";
         }
         catch (OperationCanceledException)
