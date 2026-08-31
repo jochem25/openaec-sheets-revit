@@ -4,7 +4,8 @@
 - [x] Core: `SplitGroupValues` + `GroupValueSeparators` in PdfSettings, split-pad in `JobBuilder.GroupedJobs`
 - [x] UI: checkbox + scheidingstekens, statusregel met boekjes-telling
 - [x] Tests 43/43, CHANGELOG, versie 0.2.0
-- [ ] `Deploy-Dev.ps1` herhalen met Revit gesloten (kopie naar Addins was geblokkeerd)
+- [x] Geïnstalleerd in `%APPDATA%\Autodesk\Revit\Addins\2025\OpenAEC.Sheets` (0.2.0.0, hash-geverifieerd) terwijl Revit open stond
+- [ ] Na Revit-herstart: `*.old.37272`-restanten (0.1.0-DLL's) in de plugin-map verwijderen of gewoon `Deploy-Dev.ps1` draaien
 - [ ] Handmatige test volgens `docs/TEST-pdf-split-boekjes.md` op 2459 Parkview Gouda
 - [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
