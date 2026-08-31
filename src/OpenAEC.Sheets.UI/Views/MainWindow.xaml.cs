@@ -45,14 +45,22 @@ public partial class MainWindow : Window
             tab.IsSelected = true;
     }
 
+    private bool _bookletBoxLastFocused;
+
+    private void OnNamingBoxGotFocus(object sender, RoutedEventArgs e) =>
+        _bookletBoxLastFocused = ReferenceEquals(sender, BookletNameBox);
+
     private void OnInsertNamingToken(object sender, RoutedEventArgs e)
     {
-        var caret = NamingTemplateBox.CaretIndex;
+        // Doel: het veld waar het laatst in getypt is; boekjesnaam alleen als dat veld actief is
+        var intoBooklet = _bookletBoxLastFocused && BookletNameBox.IsEnabled;
+        var box = intoBooklet ? BookletNameBox : NamingTemplateBox;
+        var caret = box.CaretIndex;
         var token = _viewModel.SelectedNamingToken ?? "";
-        _viewModel.InsertNamingToken(token, caret);
+        _viewModel.InsertNamingToken(token, caret, intoBooklet);
         // Cursor achter het ingevoegde token en focus terug naar het veld
-        NamingTemplateBox.Focus();
-        NamingTemplateBox.CaretIndex = Math.Min(caret + token.Length + 2, NamingTemplateBox.Text.Length);
+        box.Focus();
+        box.CaretIndex = Math.Min(caret + token.Length + 2, box.Text.Length);
     }
 
     private void OnBrowseFolder(object sender, RoutedEventArgs e)

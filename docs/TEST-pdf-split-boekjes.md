@@ -86,9 +86,13 @@ Checks:
     `{Group}_{Project Number}` → bestanden `plattegronden_2459.pdf`, `plattegronden-noord_2459.pdf`, …
     Prefix `{Project Number}` (zonder `{Group}`) → `2459_plattegronden.pdf` enz.
 
-17. Staat de PDF-modus op *Combineer alles* of *per parameterwaarde*, dan toont de voorbeeldregel
-    daarnaast de boekjesnaam mét de melding dat die uit "Bestandsnaam / prefix" (PDF-tab) komt en
-    niet uit de template. Typen in dat prefix-veld ververst het voorbeeld live.
+17. Staat de PDF-modus op *Combineer alles* of *per parameterwaarde*, dan is op de Exporteren-tab het
+    veld **Boekjesnaam** actief (zelfde veld als "Bestandsnaam / prefix" op de PDF-tab). Typ
+    `{tekening_fase}_wijzA_{Group}` (of klik in het veld en gebruik de token-kiezer) → voorbeeldregel
+    toont `Boekje: TO+_wijzA_doorsneden`; *Voorbeeld vernieuwen* → kolom Bestandsnaam
+    `TO+_wijzA_doorsneden`, `TO+_wijzA_doorsneden-noord`, … en de export schrijft die namen.
+    Zonder `{Group}` (bijv. `TO_wijzA`) wordt de groepswaarde erachter gezet: `TO_wijzA_doorsneden`.
+    Bij *Losse bestanden* is het veld uitgeschakeld en geldt de naamtemplate.
 
 Checks:
 - [ ] Voorbeeldregel loopt live mee tijdens typen en na wijzigen van de selectie

@@ -581,22 +581,32 @@
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <TextBlock Text="Naamtemplate:" Style="{StaticResource SettingLabel}" Width="110" />
                             <TextBox x:Name="NamingTemplateBox" Width="500" Style="{StaticResource SearchBox}"
+                                     GotKeyboardFocus="OnNamingBoxGotFocus"
                                      Text="{Binding NamingTemplate, UpdateSourceTrigger=PropertyChanged}"
                                      ToolTip="Vaste tekst en {tokens} vrij te combineren, bijv. TO_{Sheet Number}_{Sheet Name} of {Project Number}_{tekening_fase}_{Sheet Number}" />
                             <CheckBox Content="Submap per formaat" Margin="16,0,0,0" VerticalAlignment="Center"
                                       IsChecked="{Binding Profile.SplitByFormat}" />
                         </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6" IsEnabled="{Binding PdfCombineActive}">
+                            <TextBlock Text="Boekjesnaam:" Style="{StaticResource SettingLabel}" Width="110" />
+                            <TextBox x:Name="BookletNameBox" Width="500" Style="{StaticResource SearchBox}"
+                                     GotKeyboardFocus="OnNamingBoxGotFocus"
+                                     Text="{Binding PdfCombinedFileName, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Naam van gecombineerde PDF's (PDF-tab: 'Combineer alles' of 'per parameterwaarde'). Zelfde veld als 'Bestandsnaam / prefix' op de PDF-tab.&#x0a;Vaste tekst en tokens; {Group} = de groepswaarde. Zonder {Group} komt de groepswaarde automatisch achter de naam. Leeg = alleen groepswaarde / documentnaam." />
+                            <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                       Text="alleen bij gecombineerde PDF (PDF-tab)" />
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                             <TextBlock Text="Token:" Style="{StaticResource SettingLabel}" Width="110" />
                             <ComboBox Width="300" ItemsSource="{Binding NamingTokens}"
                                       SelectedItem="{Binding SelectedNamingToken}"
-                                      ToolTip="Document-tokens (Project Name/Number, Document Title, Sheet Set) en alle sheet- en titleblock-parameters" />
+                                      ToolTip="Document-tokens (Project Name/Number, Document Title, Sheet Set), {Group} en alle sheet- en titleblock-parameters" />
                             <Button Content="Invoegen" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
-                                    Click="OnInsertNamingToken" ToolTip="Voegt {token} in op de cursorpositie in de naamtemplate" />
+                                    Click="OnInsertNamingToken" ToolTip="Voegt {token} in op de cursorpositie van het veld waar je het laatst in typte (naamtemplate of boekjesnaam)" />
                         </StackPanel>
-                        <TextBlock Margin="114,0,0,2" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                   Text="Vaste tekst mag overal: TO_{Sheet Number}_{Sheet Name}. Tokens: alle sheet- en titleblock-parameters plus {Project Name}, {Project Number}, {Document Title}, {Sheet Set}. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
-                        <TextBlock Margin="114,0,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}"
+                        <TextBlock Margin="114,0,0,2" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}"
+                                   Text="Vaste tekst mag overal: TO_{Sheet Number}_{Sheet Name}. Tokens: alle sheet- en titleblock-parameters plus {Project Name}, {Project Number}, {Document Title}, {Sheet Set}; in de boekjesnaam ook {Group}. Losse bestanden volgen de naamtemplate, gecombineerde PDF's de boekjesnaam. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
+                        <TextBlock Margin="114,0,0,8" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}"
                                    Text="{Binding NamingPreview}" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Content="Voorbeeld vernieuwen" Style="{StaticResource SecondaryButton}"

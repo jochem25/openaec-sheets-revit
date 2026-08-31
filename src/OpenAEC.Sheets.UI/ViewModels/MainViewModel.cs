@@ -99,6 +99,7 @@ public sealed partial class MainViewModel : ObservableObject
         var selectedSheets = _sheetRows.Count(r => r.IsSelected);
         var selectedViews = _viewRows.Count(r => r.IsSelected);
         StatusText = $"{selectedSheets} sheets en {selectedViews} views geselecteerd" + BookletSummary();
+        UpdatePdfCombineActive();
         UpdateNamingPreview();
     }
 
@@ -242,6 +243,12 @@ public sealed partial class MainViewModel : ObservableObject
     // Boekjesnaam / prefix (↔ Profile.Pdf.CombinedFileName) — via VM zodat het voorbeeld live meeloopt
     [ObservableProperty] private string _pdfCombinedFileName = "";
 
+    /// <summary>True als PDF aan staat én gecombineerd wordt (alles of per parameterwaarde): dan geldt de boekjesnaam.</summary>
+    [ObservableProperty] private bool _pdfCombineActive;
+
+    private void UpdatePdfCombineActive() =>
+        PdfCombineActive = PdfEnabled && Profile.Pdf.FileMode != PdfFileMode.Separate;
+
     partial void OnPdfCombinedFileNameChanged(string value)
     {
         Profile.Pdf.CombinedFileName = value ?? "";
@@ -361,20 +368,25 @@ public sealed partial class MainViewModel : ObservableObject
                 ? NamingEngine.Sanitize(JobBuilder.BookletName(
                     Profile.Pdf.CombinedFileName, _gateway.DocumentTitle, _projectName, setName, items[0], docTokens))
                 : JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, docTokens).FirstOrDefault()?.FileName ?? "";
-            text += $"   ·   Gecombineerde PDF (via 'Bestandsnaam / prefix' op de PDF-tab, niet via de template): {booklet}";
+            text += $"   ·   Boekje: {booklet}";
         }
 
         NamingPreview = text;
     }
 
-    /// <summary>Token invoegen; de view geeft de caret-positie door, anders achteraan.</summary>
-    public void InsertNamingToken(string? token, int caretIndex = -1)
+    /// <summary>
+    /// Token invoegen in de naamtemplate of (<paramref name="intoBooklet"/>) in de boekjesnaam;
+    /// de view geeft de caret-positie door, anders achteraan.
+    /// </summary>
+    public void InsertNamingToken(string? token, int caretIndex = -1, bool intoBooklet = false)
     {
         if (string.IsNullOrWhiteSpace(token)) return;
         var insert = "{" + token + "}";
-        var current = NamingTemplate ?? "";
+        var current = (intoBooklet ? PdfCombinedFileName : NamingTemplate) ?? "";
         var at = caretIndex < 0 || caretIndex > current.Length ? current.Length : caretIndex;
-        NamingTemplate = current.Insert(at, insert);
+        var result = current.Insert(at, insert);
+        if (intoBooklet) PdfCombinedFileName = result;
+        else NamingTemplate = result;
     }
 
     // ── Export ──────────────────────────────────────────────────────────────
@@ -528,6 +540,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         NamingTokens.Clear();
         foreach (var token in NamingEngine.DocumentTokens) NamingTokens.Add(token);
+        NamingTokens.Add(NamingEngine.TokenGroup);
         foreach (var name in SheetParameterNames) NamingTokens.Add(name);
         SelectedNamingToken = NamingTokens.FirstOrDefault();
 
