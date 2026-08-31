@@ -209,10 +209,35 @@
                                               SelectedItem="{Binding Profile.Pdf.GroupByParameter}"
                                               IsEnabled="{Binding PdfCombineByParameter}"
                                               ToolTip="Eén gecombineerde PDF per unieke waarde, bijv. per bouwdeel of discipline" />
+                                    <CheckBox Content="Waarde splitsen (blad in meerdere boekjes)" Style="{StaticResource SettingCheck}"
+                                              Margin="20,2,0,2"
+                                              IsChecked="{Binding PdfSplitGroupValues}"
+                                              IsEnabled="{Binding PdfCombineByParameter}"
+                                              ToolTip="Splitst de parameterwaarde op ; of , — elk deel wordt een eigen gecombineerde PDF. Eén blad kan zo in meerdere boekjes komen." />
+                                    <StackPanel Orientation="Horizontal" Margin="40,0,0,4"
+                                                IsEnabled="{Binding PdfCombineByParameter}">
+                                        <TextBlock Text="Scheidingstekens:" Style="{StaticResource SettingLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBox Style="{StaticResource SearchBox}" Width="60"
+                                                 Text="{Binding PdfGroupValueSeparators, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsEnabled="{Binding PdfSplitGroupValues}"
+                                                 ToolTip="Elk teken splitst afzonderlijk. Standaard ; en , — leeg = niet splitsen." />
+                                    </StackPanel>
+                                    <StackPanel Margin="20,0,0,4" IsEnabled="{Binding PdfCombineByParameter}">
+                                        <CheckBox Content="Wildcards expanderen (* en ?)" Style="{StaticResource SettingCheck}"
+                                                  Margin="20,0,0,0"
+                                                  IsChecked="{Binding PdfExpandWildcards}"
+                                                  IsEnabled="{Binding PdfSplitGroupValues}"
+                                                  ToolTip="Een gesplitst deel met * of ? is een patroon dat tegen de concrete boekjesnamen van de selectie wordt geëxpandeerd: '*' = voorblad in elk boekje, 'Z_*' = situatietekening in alle woningboekjes, '*_E1;*_E2' = in de E1- en E2-boekjes. Een patroon maakt nooit zelf een boekje aan; zonder match volgt een melding in de statusregel." />
+                                    </StackPanel>
+                                    <CheckBox Content="Bladen 1× renderen, boekjes samenstellen" Style="{StaticResource SettingCheck}"
+                                              Margin="20,2,0,2"
+                                              IsChecked="{Binding PdfAssembleBooklets}"
+                                              IsEnabled="{Binding PdfCombineByParameter}"
+                                              ToolTip="Zit een blad in meerdere boekjes (voorblad, situatie), dan rendert Revit elk blad maar één keer naar een tijdelijke PDF; de boekjes worden daarna samengesteld door pagina's te mergen (met een bookmark per blad). Veel sneller bij veel overlappende boekjes. Zonder overlap gebeurt niets bijzonders; mislukt het samenstellen, dan wordt dat boekje alsnog native door Revit geëxporteerd." />
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
-                                             Text="{Binding Profile.Pdf.CombinedFileName}"
-                                             ToolTip="Bij 'combineer alles': basisnaam; projectnaam en printset-naam worden er automatisch achter gezet. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde." />
+                                             Text="{Binding PdfCombinedFileName, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Bij 'combineer alles': basisnaam; projectnaam en printset-naam worden er automatisch achter gezet. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde.&#x0a;Tokens toegestaan, bijv. {Project Number}_{tekening_fase} — dan wordt niets automatisch achtergevoegd; met {Group} bepaal je zelf waar de groepswaarde komt. Tokens worden opgelost via het eerste blad van het boekje." />
                                 </StackPanel>
                             </GroupBox>
                         </WrapPanel>
@@ -567,13 +592,34 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <TextBlock Text="Naamtemplate:" Style="{StaticResource SettingLabel}" Width="110" />
-                            <TextBox Width="500" Style="{StaticResource SearchBox}"
-                                     Text="{Binding Profile.NamingTemplate, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox x:Name="NamingTemplateBox" Width="500" Style="{StaticResource SearchBox}"
+                                     GotKeyboardFocus="OnNamingBoxGotFocus"
+                                     Text="{Binding NamingTemplate, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Vaste tekst en {tokens} vrij te combineren, bijv. TO_{Sheet Number}_{Sheet Name} of {Project Number}_{tekening_fase}_{Sheet Number}" />
                             <CheckBox Content="Submap per formaat" Margin="16,0,0,0" VerticalAlignment="Center"
                                       IsChecked="{Binding Profile.SplitByFormat}" />
                         </StackPanel>
-                        <TextBlock Margin="114,0,0,8" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                   Text="Tokens: {Sheet Number}, {Sheet Name}, {Current Revision} — elke sheetparameter kan als {Naam} gebruikt worden. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6" IsEnabled="{Binding PdfCombineActive}">
+                            <TextBlock Text="Boekjesnaam:" Style="{StaticResource SettingLabel}" Width="110" />
+                            <TextBox x:Name="BookletNameBox" Width="500" Style="{StaticResource SearchBox}"
+                                     GotKeyboardFocus="OnNamingBoxGotFocus"
+                                     Text="{Binding PdfCombinedFileName, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Naam van gecombineerde PDF's (PDF-tab: 'Combineer alles' of 'per parameterwaarde'). Zelfde veld als 'Bestandsnaam / prefix' op de PDF-tab.&#x0a;Vaste tekst en tokens; {Group} = de groepswaarde. Zonder {Group} komt de groepswaarde automatisch achter de naam. Leeg = alleen groepswaarde / documentnaam." />
+                            <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                       Text="alleen bij gecombineerde PDF (PDF-tab)" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="Token:" Style="{StaticResource SettingLabel}" Width="110" />
+                            <ComboBox Width="300" ItemsSource="{Binding NamingTokens}"
+                                      SelectedItem="{Binding SelectedNamingToken}"
+                                      ToolTip="Document-tokens (Project Name/Number, Document Title, Sheet Set), {Group} en de parameters van de actieve lijst: sheet- en titleblock-parameters bij Sheets, viewparameters bij Views (worden bij de eerste wissel naar Views ingelezen)" />
+                            <Button Content="Invoegen" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                    Click="OnInsertNamingToken" ToolTip="Voegt {token} in op de cursorpositie van het veld waar je het laatst in typte (naamtemplate of boekjesnaam)" />
+                        </StackPanel>
+                        <TextBlock Margin="114,0,0,2" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}"
+                                   Text="Vaste tekst mag overal: TO_{Sheet Number}_{Sheet Name}. Tokens: alle sheet- en titleblock-parameters plus {Project Name}, {Project Number}, {Document Title}, {Sheet Set}; in de boekjesnaam ook {Group}. Losse bestanden volgen de naamtemplate, gecombineerde PDF's de boekjesnaam. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
+                        <TextBlock Margin="114,0,0,8" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}"
+                                   Text="{Binding NamingPreview}" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Content="Voorbeeld vernieuwen" Style="{StaticResource SecondaryButton}"
                                     Command="{Binding RefreshJobsCommand}" />

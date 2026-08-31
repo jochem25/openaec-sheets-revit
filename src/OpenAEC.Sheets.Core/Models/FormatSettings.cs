@@ -44,6 +44,31 @@ public sealed class PdfSettings
     public string GroupByParameter { get; set; } = "";
     /// <summary>Bestandsnaam bij CombineAll; bij CombineByParameter gebruikt als prefix.</summary>
     public string CombinedFileName { get; set; } = "";
+    /// <summary>
+    /// Bij CombineByParameter: splits de parameterwaarde op <see cref="GroupValueSeparators"/>
+    /// en maak per deel een eigen gecombineerde PDF. Eén blad kan zo in meerdere boekjes komen
+    /// (bijv. "plattegronden;plattegronden-noord"). Standaard uit = één blad in één groep.
+    /// </summary>
+    public bool SplitGroupValues { get; set; }
+    /// <summary>Scheidingstekens voor <see cref="SplitGroupValues"/>; elk teken splitst afzonderlijk.</summary>
+    public string GroupValueSeparators { get; set; } = DefaultGroupValueSeparators;
+
+    public const string DefaultGroupValueSeparators = ";,";
+    /// <summary>
+    /// Bij <see cref="SplitGroupValues"/>: een gesplitst token mag een glob-patroon zijn
+    /// (<c>*</c> = 0 of meer tekens, <c>?</c> = 1 teken) en wordt geëxpandeerd tegen de concrete
+    /// boekjesnamen van de selectie. Zo komt een voorblad met "*" in elk boekje en een
+    /// situatietekening met "Z_*" in alle woningboekjes. Een patroon maakt nooit zelf een boekje aan.
+    /// </summary>
+    public bool ExpandWildcards { get; set; } = true;
+    /// <summary>
+    /// Bij CombineByParameter met overlappende boekjes: elk blad één keer door Revit laten
+    /// renderen (tijdelijke PDF per blad) en de boekjes daarna samenstellen door pagina's te
+    /// mergen, i.p.v. een blad dat in 77 boekjes zit 77× te exporteren. Zonder overlap gebeurt
+    /// niets bijzonders (native export). Bij een fout in het samenstellen valt een boekje
+    /// automatisch terug op de native gecombineerde export.
+    /// </summary>
+    public bool AssembleBooklets { get; set; } = true;
     public bool VectorHiddenLines { get; set; } = true;
     public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
     public ColorMode Colors { get; set; } = ColorMode.Color;

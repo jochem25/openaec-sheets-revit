@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using OpenAEC.Sheets.Core.Models;
+using OpenAEC.Sheets.Core.Naming;
 using OpenAEC.Sheets.Core.Services;
 
 namespace OpenAEC.Sheets.UI.ViewModels;
@@ -17,6 +18,7 @@ public sealed partial class MainViewModel : ObservableObject
     private List<SheetRowViewModel> _viewRows = [];
     private Dictionary<string, HashSet<long>> _setContents = new();
     private string _projectName = "";
+    private string _projectNumber = "";
     private CancellationTokenSource? _exportCts;
 
     public MainViewModel(IRevitGateway gateway, ProfileStore profileStore)
@@ -46,7 +48,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText = "";
 
-    partial void OnShowSheetsChanged(bool value) => ApplyFilter();
+    partial void OnShowSheetsChanged(bool value)
+    {
+        ApplyFilter();
+        _ = SyncNamingTokensToActiveListAsync();
+    }
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     partial void OnSelectedSetFilterChanged(string value)
@@ -96,7 +102,30 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var selectedSheets = _sheetRows.Count(r => r.IsSelected);
         var selectedViews = _viewRows.Count(r => r.IsSelected);
-        StatusText = $"{selectedSheets} sheets en {selectedViews} views geselecteerd";
+        StatusText = $"{selectedSheets} sheets en {selectedViews} views geselecteerd" + BookletSummary();
+        UpdatePdfCombineActive();
+        UpdateNamingPreview();
+    }
+
+    /// <summary>
+    /// Bij "combineer per parameterwaarde" + splitsen: aantal boekjes, totaal aantal bladpagina's
+    /// over alle boekjes (incl. dubbeltellingen) en het aantal unieke sheets.
+    /// </summary>
+    private string BookletSummary()
+    {
+        if (!PdfEnabled || !PdfCombineByParameter || !PdfSplitGroupValues) return "";
+
+        var items = SelectedItems();
+        if (items.Count == 0) return "";
+
+        var warnings = new List<string>();
+        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, CurrentDocumentTokens(), warnings);
+        var pages = jobs.Sum(j => j.ElementIds.Count);
+        var unique = jobs.SelectMany(j => j.ElementIds).Distinct().Count();
+        var text = $" — {jobs.Count} boekjes, {pages} bladpagina's ({unique} unieke sheets)";
+        if (warnings.Count > 0)
+            text += " — let op: " + string.Join("; ", warnings);
+        return text;
     }
 
     private IReadOnlyList<SheetItem> SelectedItems() =>
@@ -151,6 +180,7 @@ public sealed partial class MainViewModel : ObservableObject
         SyncFormatFlagsFromProfile();
         SyncXmlParametersFromProfile();
         SyncPdfFileModeFromProfile();
+        SyncNamingFromProfile();
     }
 
     [RelayCommand]
@@ -188,7 +218,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _imgEnabled;
     [ObservableProperty] private bool _xmlEnabled;
 
-    partial void OnPdfEnabledChanged(bool value) => ToggleFormat(ExportFormat.Pdf, value);
+    partial void OnPdfEnabledChanged(bool value)
+    {
+        ToggleFormat(ExportFormat.Pdf, value);
+        UpdateStatus();
+    }
     partial void OnDwgEnabledChanged(bool value) => ToggleFormat(ExportFormat.Dwg, value);
     partial void OnDgnEnabledChanged(bool value) => ToggleFormat(ExportFormat.Dgn, value);
     partial void OnDwfEnabledChanged(bool value) => ToggleFormat(ExportFormat.Dwf, value);
@@ -205,16 +239,68 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnPdfSeparateFilesChanged(bool value)
     {
         if (value) Profile.Pdf.FileMode = PdfFileMode.Separate;
+        UpdateStatus();
     }
 
     partial void OnPdfCombineAllChanged(bool value)
     {
         if (value) Profile.Pdf.FileMode = PdfFileMode.CombineAll;
+        UpdateStatus();
+    }
+
+    // Boekjesnaam / prefix (↔ Profile.Pdf.CombinedFileName) — via VM zodat het voorbeeld live meeloopt
+    [ObservableProperty] private string _pdfCombinedFileName = "";
+
+    /// <summary>True als PDF aan staat én gecombineerd wordt (alles of per parameterwaarde): dan geldt de boekjesnaam.</summary>
+    [ObservableProperty] private bool _pdfCombineActive;
+
+    private void UpdatePdfCombineActive() =>
+        PdfCombineActive = PdfEnabled && Profile.Pdf.FileMode != PdfFileMode.Separate;
+
+    partial void OnPdfCombinedFileNameChanged(string value)
+    {
+        Profile.Pdf.CombinedFileName = value ?? "";
+        UpdateNamingPreview();
     }
 
     partial void OnPdfCombineByParameterChanged(bool value)
     {
         if (value) Profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+        UpdateStatus();
+    }
+
+    // Waarde splitsen: één blad in meerdere boekjes (↔ Profile.Pdf.SplitGroupValues / GroupValueSeparators)
+    [ObservableProperty] private bool _pdfSplitGroupValues;
+    [ObservableProperty] private string _pdfGroupValueSeparators = PdfSettings.DefaultGroupValueSeparators;
+
+    partial void OnPdfSplitGroupValuesChanged(bool value)
+    {
+        Profile.Pdf.SplitGroupValues = value;
+        UpdateStatus();
+    }
+
+    partial void OnPdfGroupValueSeparatorsChanged(string value)
+    {
+        Profile.Pdf.GroupValueSeparators = value ?? "";
+        UpdateStatus();
+    }
+
+    // Bladen één keer renderen en boekjes samenstellen (↔ Profile.Pdf.AssembleBooklets)
+    [ObservableProperty] private bool _pdfAssembleBooklets = true;
+
+    partial void OnPdfAssembleBookletsChanged(bool value)
+    {
+        Profile.Pdf.AssembleBooklets = value;
+        UpdateStatus();
+    }
+
+    // Wildcards (* en ?) in gesplitste tokens expanderen tegen de concrete boekjesnamen (↔ Profile.Pdf.ExpandWildcards)
+    [ObservableProperty] private bool _pdfExpandWildcards = true;
+
+    partial void OnPdfExpandWildcardsChanged(bool value)
+    {
+        Profile.Pdf.ExpandWildcards = value;
+        UpdateStatus();
     }
 
     private void SyncPdfFileModeFromProfile()
@@ -222,6 +308,11 @@ public sealed partial class MainViewModel : ObservableObject
         PdfSeparateFiles = Profile.Pdf.FileMode == PdfFileMode.Separate;
         PdfCombineAll = Profile.Pdf.FileMode == PdfFileMode.CombineAll;
         PdfCombineByParameter = Profile.Pdf.FileMode == PdfFileMode.CombineByParameter;
+        PdfSplitGroupValues = Profile.Pdf.SplitGroupValues;
+        PdfGroupValueSeparators = Profile.Pdf.GroupValueSeparators;
+        PdfExpandWildcards = Profile.Pdf.ExpandWildcards;
+        PdfAssembleBooklets = Profile.Pdf.AssembleBooklets;
+        PdfCombinedFileName = Profile.Pdf.CombinedFileName;
     }
 
     private void ToggleFormat(ExportFormat format, bool enabled)
@@ -251,6 +342,135 @@ public sealed partial class MainViewModel : ObservableObject
             param.IsSelected = selected.Contains(param.Name);
     }
 
+    // ── Naamgeving (template met vaste tekst + {tokens}) ────────────────────
+
+    /// <summary>Spiegel van Profile.NamingTemplate zodat het voorbeeld live meeloopt tijdens typen.</summary>
+    [ObservableProperty] private string _namingTemplate = "";
+
+    /// <summary>Opgeloste bestandsnaam voor het eerste geselecteerde (of eerste) blad.</summary>
+    [ObservableProperty] private string _namingPreview = "";
+
+    /// <summary>
+    /// Alle tokens voor de kiezer: document-tokens en {Group} eerst, daarna de parameters van de
+    /// actieve lijst — sheet-/titleblock-parameters bij Sheets, viewparameters bij Views.
+    /// </summary>
+    public ObservableCollection<string> NamingTokens { get; } = [];
+
+    [ObservableProperty] private string? _selectedNamingToken;
+
+    private bool _viewParamsRequested;
+
+    /// <summary>
+    /// Views worden bij het openen licht ingelezen (alleen naam/type); bij de eerste wissel naar
+    /// Views halen we alsnog de volledige viewparameters op en vullen we de token-kiezer daarmee.
+    /// </summary>
+    private async Task SyncNamingTokensToActiveListAsync()
+    {
+        if (!ShowSheets && !_viewParamsRequested)
+        {
+            _viewParamsRequested = true;
+            try
+            {
+                StatusText = "Viewparameters lezen…";
+                await _gateway.EnsureViewParametersAsync();
+            }
+            catch (Exception ex)
+            {
+                _viewParamsRequested = false; // volgende wissel opnieuw proberen
+                StatusText = "Viewparameters lezen mislukt: " + ex.Message;
+            }
+        }
+        RebuildNamingTokens();
+        UpdateStatus();
+    }
+
+    private void RebuildNamingTokens()
+    {
+        var source = ShowSheets ? _sheetRows : _viewRows;
+        NamingTokens.Clear();
+        foreach (var token in NamingEngine.DocumentTokens) NamingTokens.Add(token);
+        NamingTokens.Add(NamingEngine.TokenGroup);
+        var names = source
+            .SelectMany(r => r.Item.Parameters.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in names) NamingTokens.Add(name);
+
+        if (SelectedNamingToken is null || !NamingTokens.Contains(SelectedNamingToken))
+            SelectedNamingToken = NamingTokens.FirstOrDefault();
+    }
+
+    partial void OnNamingTemplateChanged(string value)
+    {
+        Profile.NamingTemplate = value ?? "";
+        UpdateNamingPreview();
+    }
+
+    private void SyncNamingFromProfile()
+    {
+        NamingTemplate = Profile.NamingTemplate;
+        UpdateNamingPreview();
+    }
+
+    private IReadOnlyDictionary<string, string> CurrentDocumentTokens()
+    {
+        var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
+        return JobBuilder.DocumentTokens(_gateway.DocumentTitle, _projectName, _projectNumber, setName);
+    }
+
+    private void UpdateNamingPreview()
+    {
+        var activeRows = ShowSheets ? _sheetRows : _viewRows;
+        var sample = activeRows.FirstOrDefault(r => r.IsSelected)
+            ?? activeRows.FirstOrDefault()
+            ?? _sheetRows.FirstOrDefault();
+        if (sample is null)
+        {
+            NamingPreview = "";
+            return;
+        }
+        var docTokens = CurrentDocumentTokens();
+        var name = NamingEngine.Apply(Profile.NamingTemplate, sample.Item.Parameters, docTokens);
+        var text = $"Voorbeeld ({sample.Number}): {NamingEngine.Sanitize(name)}";
+
+        // Gecombineerde PDF's volgen niet de template maar 'Bestandsnaam / prefix' op de PDF-tab —
+        // laat dat hier zien, anders lijkt de template "niets te doen".
+        if (PdfEnabled && Profile.Pdf.FileMode != PdfFileMode.Separate)
+        {
+            var items = SelectedItems();
+            if (items.Count == 0) items = [sample.Item];
+            var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
+            var booklet = Profile.Pdf.FileMode == PdfFileMode.CombineAll
+                ? NamingEngine.Sanitize(JobBuilder.BookletName(
+                    Profile.Pdf.CombinedFileName, _gateway.DocumentTitle, _projectName, setName, items[0], docTokens))
+                : JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, docTokens).FirstOrDefault()?.FileName ?? "";
+            text += $"   ·   Boekje: {booklet}";
+        }
+
+        NamingPreview = text;
+    }
+
+    /// <summary>Verstreken tijd als "47 s" / "3:24 min" / "1:03:24 uur".</summary>
+    public static string FormatDuration(TimeSpan t) =>
+        t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00} uur"
+        : t.TotalMinutes >= 1 ? $"{t.Minutes}:{t.Seconds:00} min"
+        : $"{t.Seconds} s";
+
+    /// <summary>
+    /// Token invoegen in de naamtemplate of (<paramref name="intoBooklet"/>) in de boekjesnaam;
+    /// de view geeft de caret-positie door, anders achteraan.
+    /// </summary>
+    public void InsertNamingToken(string? token, int caretIndex = -1, bool intoBooklet = false)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return;
+        var insert = "{" + token + "}";
+        var current = (intoBooklet ? PdfCombinedFileName : NamingTemplate) ?? "";
+        var at = caretIndex < 0 || caretIndex > current.Length ? current.Length : caretIndex;
+        var result = current.Insert(at, insert);
+        if (intoBooklet) PdfCombinedFileName = result;
+        else NamingTemplate = result;
+    }
+
     // ── Export ──────────────────────────────────────────────────────────────
 
     public ObservableCollection<JobRowViewModel> Jobs { get; } = [];
@@ -271,10 +491,14 @@ public sealed partial class MainViewModel : ObservableObject
 
         Jobs.Clear();
         var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
-        foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle, _projectName, setName))
+        foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle, _projectName, setName, _projectNumber))
             Jobs.Add(new JobRowViewModel(job));
 
-        ProgressText = $"{Jobs.Count} bestanden te exporteren";
+        var tempPages = Jobs.Count(j => j.Job.Kind == ExportJobKind.TempPage);
+        ProgressText = tempPages == 0
+            ? $"{Jobs.Count} bestanden te exporteren"
+            : $"{Jobs.Count - tempPages} bestanden te exporteren ({tempPages} bladen worden 1× gerenderd en tot boekjes samengesteld)";
+        UpdateStatus(); // groepeer-parameter is direct aan Profile.Pdf gebonden → hier de boekjes-telling verversen
     }
 
     [RelayCommand]
@@ -296,6 +520,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsExporting = true;
         ProgressValue = 0;
         _exportCts = new CancellationTokenSource();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         var progress = new Progress<ExportProgress>(p =>
         {
@@ -304,26 +529,28 @@ public sealed partial class MainViewModel : ObservableObject
             if (row is not null)
                 row.Status = p.Error is null ? "✓ Gereed" : "✗ " + p.Error;
             ProgressText = p.Error is null
-                ? $"{p.JobIndex + 1}/{p.Total} — {p.FileName}"
-                : $"{p.JobIndex + 1}/{p.Total} — FOUT bij {p.FileName}";
+                ? $"{p.JobIndex + 1}/{p.Total} — {p.FileName} — {FormatDuration(stopwatch.Elapsed)}"
+                : $"{p.JobIndex + 1}/{p.Total} — FOUT bij {p.FileName} — {FormatDuration(stopwatch.Elapsed)}";
         });
 
         try
         {
             var jobs = Jobs.Select(j => j.Job).ToList();
             await _gateway.ExportAsync(jobs, Profile, Profile.OutputFolder, progress, _exportCts.Token);
+            stopwatch.Stop();
             var failures = Jobs.Count(j => j.Status.StartsWith('✗'));
+            var files = jobs.Count(j => j.Kind != ExportJobKind.TempPage);
             ProgressText = failures == 0
-                ? $"Klaar — {jobs.Count} bestanden geëxporteerd naar {Profile.OutputFolder}"
-                : $"Klaar met {failures} fout(en) — zie statuskolom";
+                ? $"Klaar in {FormatDuration(stopwatch.Elapsed)} — {files} bestanden geëxporteerd naar {Profile.OutputFolder}"
+                : $"Klaar in {FormatDuration(stopwatch.Elapsed)} met {failures} fout(en) — zie statuskolom";
         }
         catch (OperationCanceledException)
         {
-            ProgressText = "Export geannuleerd.";
+            ProgressText = $"Export geannuleerd na {FormatDuration(stopwatch.Elapsed)}.";
         }
         catch (Exception ex)
         {
-            ProgressText = "Export mislukt: " + ex.Message;
+            ProgressText = $"Export mislukt na {FormatDuration(stopwatch.Elapsed)}: " + ex.Message;
         }
         finally
         {
@@ -371,6 +598,7 @@ public sealed partial class MainViewModel : ObservableObject
         _sheetRows = snapshot.Sheets.Select(s => Track(new SheetRowViewModel(s))).ToList();
         _viewRows = snapshot.Views.Select(v => Track(new SheetRowViewModel(v))).ToList();
         _projectName = snapshot.ProjectName;
+        _projectNumber = snapshot.ProjectNumber;
 
         SetFilters.Clear();
         SetFilters.Add(ALL_SETS);
@@ -398,6 +626,8 @@ public sealed partial class MainViewModel : ObservableObject
             SheetParameterNames.Add(name);
         }
 
+        RebuildNamingTokens();
+
         PhaseNames.Clear();
         PhaseNames.Add(DEFAULT_CHOICE);
         foreach (var name in snapshot.PhaseNames) PhaseNames.Add(name);
@@ -407,6 +637,7 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var name in snapshot.CategoryMappingNames) CategoryMappingNames.Add(name);
 
         SyncPdfFileModeFromProfile();
+        SyncNamingFromProfile();
 
         ProfileNames.Clear();
         foreach (var name in _profileStore.ListNames()) ProfileNames.Add(name);

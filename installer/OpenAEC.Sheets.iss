@@ -2,7 +2,7 @@
 ; Bouwen via build\Build-Installer.ps1 (die geeft AppVersion en PublishDir mee)
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.2.0"
 #endif
 #ifndef PublishDir
   #define PublishDir "publish"

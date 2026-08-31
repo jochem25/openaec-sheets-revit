@@ -37,7 +37,7 @@ public sealed class RevitGateway : IRevitGateway
             var doc = app.ActiveUIDocument.Document;
 
             // Alle titleblocks in één query i.p.v. één collector per sheet
-            var sizeBySheetId = CollectSheetSizes(doc);
+            var titleBlockBySheetId = CollectTitleBlocks(doc);
 
             var allSheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -59,8 +59,10 @@ public sealed class RevitGateway : IRevitGateway
                     Number = sheet.SheetNumber,
                     Name = sheet.Name,
                     Revision = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "",
-                    Size = sizeBySheetId.GetValueOrDefault(sheet.Id, ""),
-                    Parameters = CollectParameters(sheet),
+                    Size = SheetSize(titleBlockBySheetId.GetValueOrDefault(sheet.Id)),
+                    // Sheetparameters + (aanvullend) instance-parameters van het titleblock,
+                    // zodat bijv. een fase- of stempelparameter op het titleblock ook als {token} werkt
+                    Parameters = CollectParameters(sheet, titleBlockBySheetId.GetValueOrDefault(sheet.Id)),
                 };
                 _itemCache[item.Id] = item;
                 sheets.Add(item);
@@ -130,6 +132,7 @@ public sealed class RevitGateway : IRevitGateway
                 Sheets = sheets,
                 Views = views,
                 ProjectName = doc.ProjectInformation?.Name ?? "",
+                ProjectNumber = doc.ProjectInformation?.Number ?? "",
                 ViewSheetSets = sets,
                 DwgSetupNames = SetupNames(doc, typeof(ExportDWGSettings)),
                 DgnSetupNames = SetupNames(doc, typeof(ExportDGNSettings)),
@@ -151,22 +154,28 @@ public sealed class RevitGateway : IRevitGateway
             () => { }, System.Windows.Threading.DispatcherPriority.Render);
     }
 
-    private static Dictionary<ElementId, string> CollectSheetSizes(Document doc)
+    /// <summary>Eerste titleblock per sheet (één collector voor alle sheets).</summary>
+    private static Dictionary<ElementId, Element> CollectTitleBlocks(Document doc)
     {
-        var result = new Dictionary<ElementId, string>();
+        var result = new Dictionary<ElementId, Element>();
         foreach (var titleBlock in new FilteredElementCollector(doc)
                      .OfCategory(BuiltInCategory.OST_TitleBlocks)
                      .WhereElementIsNotElementType())
         {
             var sheetId = titleBlock.OwnerViewId;
             if (sheetId == ElementId.InvalidElementId || result.ContainsKey(sheetId)) continue;
-
-            var width = titleBlock.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
-            var height = titleBlock.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
-            if (width > 0 && height > 0)
-                result[sheetId] = $"{FeetToMm(width)}x{FeetToMm(height)}";
+            result[sheetId] = titleBlock;
         }
         return result;
+    }
+
+    /// <summary>Bladformaat "breedte x hoogte" in mm uit het titleblock; leeg zonder titleblock.</summary>
+    private static string SheetSize(Element? titleBlock)
+    {
+        if (titleBlock is null) return "";
+        var width = titleBlock.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
+        var height = titleBlock.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
+        return width > 0 && height > 0 ? $"{FeetToMm(width)}x{FeetToMm(height)}" : "";
     }
 
     private static List<string> SetupNames(Document doc, Type setupType) =>
@@ -176,9 +185,20 @@ public sealed class RevitGateway : IRevitGateway
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    private static Dictionary<string, string> CollectParameters(Element element)
+    /// <summary>
+    /// Parameters van het element (naam → waarde). Een optioneel tweede element (titleblock)
+    /// vult alleen namen aan die het eerste element niet heeft — de sheet wint bij gelijke naam.
+    /// </summary>
+    private static Dictionary<string, string> CollectParameters(Element element, Element? secondary = null)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        AddParameters(result, element);
+        if (secondary is not null) AddParameters(result, secondary);
+        return result;
+    }
+
+    private static void AddParameters(Dictionary<string, string> result, Element element)
+    {
         foreach (Parameter param in element.Parameters)
         {
             if (!param.HasValue) continue;
@@ -197,10 +217,32 @@ public sealed class RevitGateway : IRevitGateway
             if (!string.IsNullOrEmpty(value))
                 result[name] = value!;
         }
-        return result;
     }
 
     private static int FeetToMm(double feet) => (int)Math.Round(feet * 304.8);
+
+    private bool _viewParametersLoaded;
+
+    public async Task EnsureViewParametersAsync(IProgress<string>? progress = null)
+    {
+        if (_viewParametersLoaded) return;
+        await _handler.ExecuteAsync(app =>
+        {
+            var doc = app.ActiveUIDocument.Document;
+            var views = _itemCache.Values.Where(i => !i.IsSheet).ToList();
+            var n = 0;
+            foreach (var item in views)
+            {
+                if (n++ % 50 == 0) Report(progress, $"Viewparameters lezen ({n}/{views.Count})…");
+                if (doc.GetElement(new ElementId(item.Id)) is not View view) continue;
+                var collected = CollectParameters(view);
+                // Bestaande sleutels (View Name / View Type) behouden zoals ze waren
+                foreach (var (key, value) in item.Parameters) collected[key] = value;
+                item.Parameters = collected;
+            }
+            _viewParametersLoaded = true;
+        });
+    }
 
     // ── Exporteren ──────────────────────────────────────────────────────────
 
@@ -211,32 +253,130 @@ public sealed class RevitGateway : IRevitGateway
         IProgress<ExportProgress> progress,
         CancellationToken cancellationToken)
     {
-        for (var i = 0; i < jobs.Count; i++)
+        // Tijdelijke map voor eenmalig gerenderde bladen (Kind = TempPage); altijd opgeruimd
+        string? tempDir = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var job = jobs[i];
-            string? error = null;
-            try
+            // Alle unieke bladen in ÉÉN Revit-call renderen (Combine=false + naming rule):
+            // schrapt de ExternalEvent-rondreis (wachten op Revit-idle) per blad.
+            // Bladen die hierna geen page_<id>.pdf hebben (views, mislukt, geen naming rule)
+            // worden in de loop hieronder alsnog per stuk gerenderd.
+            var tempPages = jobs.Where(j => j.Kind == ExportJobKind.TempPage).ToList();
+            var sheetPages = tempPages.Where(j => j.Item?.IsSheet == true).ToList();
+            if (sheetPages.Count > 1)
             {
-                await _handler.ExecuteAsync(app => ExecuteJob(app.ActiveUIDocument.Document, job, profile, outputFolder));
-            }
-            catch (Exception ex)
-            {
-                PluginLogger.LogException(ex);
-                error = ex.Message;
+                cancellationToken.ThrowIfCancellationRequested();
+                tempDir = CreateTempDir();
+                var batchDir = tempDir;
+                progress.Report(new ExportProgress(-1, jobs.Count,
+                    $"{sheetPages.Count} bladen renderen (één batch)…", null));
+                try
+                {
+                    await _handler.ExecuteAsync(app => BatchExportPages(
+                        app.ActiveUIDocument.Document, batchDir, sheetPages, profile.Pdf));
+                }
+                catch (Exception ex)
+                {
+                    PluginLogger.LogException(ex);
+                    PluginLogger.Log("Batch-export mislukt; bladen worden per stuk gerenderd.");
+                }
             }
 
-            progress.Report(new ExportProgress(i, jobs.Count, job.FileName, error));
+            for (var i = 0; i < jobs.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var job = jobs[i];
+                string? error = null;
+                try
+                {
+                    switch (job.Kind)
+                    {
+                        case ExportJobKind.TempPage:
+                            tempDir ??= CreateTempDir();
+                            var pageDir = tempDir;
+                            if (!File.Exists(Path.Combine(pageDir, job.FileName + ".pdf")))
+                                await _handler.ExecuteAsync(app => ExportPdf(
+                                    app.ActiveUIDocument.Document, pageDir, job,
+                                    job.ElementIds.Select(id => new ElementId(id)).ToList(), profile.Pdf));
+                            break;
+
+                        case ExportJobKind.Assemble:
+                            await AssembleBookletAsync(job, profile, outputFolder, tempDir);
+                            break;
+
+                        default:
+                            await _handler.ExecuteAsync(app => ExecuteJob(app.ActiveUIDocument.Document, job, profile, outputFolder));
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    PluginLogger.LogException(ex);
+                    error = ex.Message;
+                }
+
+                progress.Report(new ExportProgress(i, jobs.Count, job.FileName, error));
+            }
         }
+        finally
+        {
+            if (tempDir is not null)
+            {
+                try { Directory.Delete(tempDir, true); }
+                catch (Exception ex) { PluginLogger.LogException(ex); }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Boekje samenstellen uit de tijdelijke bladen (buiten de Revit-thread). Lukt dat niet
+    /// (ontbrekend blad, onleesbare PDF), dan native gecombineerd exporteren via Revit.
+    /// </summary>
+    private async Task AssembleBookletAsync(ExportJob job, ExportProfile profile, string baseFolder, string? tempDir)
+    {
+        var folder = FolderFor(profile, baseFolder, ExportFormat.Pdf);
+        var target = Path.Combine(folder, job.FileName + ".pdf");
+
+        try
+        {
+            if (tempDir is null) throw new InvalidOperationException("Geen tijdelijke bladen beschikbaar.");
+            var pages = job.ElementIds
+                .Select((id, i) => (
+                    Path: Path.Combine(tempDir, JobBuilder.TempPageName(id) + ".pdf"),
+                    Title: i < job.PageTitles.Count ? job.PageTitles[i] : ""))
+                .ToList();
+            await Task.Run(() => PdfAssembler.Assemble(pages, target));
+        }
+        catch (Exception ex)
+        {
+            PluginLogger.LogException(ex);
+            PluginLogger.Log($"Samenstellen van '{job.FileName}' mislukt, terugvallen op native export.");
+            await _handler.ExecuteAsync(app => ExportPdf(
+                app.ActiveUIDocument.Document, folder, job,
+                job.ElementIds.Select(id => new ElementId(id)).ToList(), profile.Pdf));
+        }
+    }
+
+    private static string CreateTempDir()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "OpenAEC.Sheets", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    private static string FolderFor(ExportProfile profile, string baseFolder, ExportFormat format)
+    {
+        var folder = profile.SplitByFormat
+            ? Path.Combine(baseFolder, format.ToString().ToUpperInvariant())
+            : baseFolder;
+        Directory.CreateDirectory(folder);
+        return folder;
     }
 
     private void ExecuteJob(Document doc, ExportJob job, ExportProfile profile, string baseFolder)
     {
-        var folder = profile.SplitByFormat
-            ? Path.Combine(baseFolder, job.Format.ToString().ToUpperInvariant())
-            : baseFolder;
-        Directory.CreateDirectory(folder);
+        var folder = FolderFor(profile, baseFolder, job.Format);
 
         var ids = job.ElementIds.Select(id => new ElementId(id)).ToList();
 
@@ -256,10 +396,65 @@ public sealed class RevitGateway : IRevitGateway
 
     private static void ExportPdf(Document doc, string folder, ExportJob job, IList<ElementId> ids, PdfSettings s)
     {
+        var options = BuildPdfOptions(s);
+        options.Combine = true;
+        options.FileName = job.FileName;
+        doc.Export(folder, ids, options);
+    }
+
+    /// <summary>
+    /// Rendert meerdere bladen in één Export-call naar losse PDF's (naming rule = sheetnummer)
+    /// en hernoemt de resultaten naar page_&lt;elementid&gt;.pdf. Bladen die niet te matchen zijn
+    /// blijven ontbreken en worden door de aanroeper per stuk gerenderd.
+    /// </summary>
+    private static void BatchExportPages(Document doc, string folder, IReadOnlyList<ExportJob> pages, PdfSettings s)
+    {
+        var options = BuildPdfOptions(s);
+        options.Combine = false;
+        try
+        {
+            var part = TableCellCombinedParameterData.Create();
+            part.ParamId = new ElementId(BuiltInParameter.SHEET_NUMBER);
+            options.SetNamingRule(new List<TableCellCombinedParameterData> { part });
+        }
+        catch (Exception ex)
+        {
+            // Geen naming rule mogelijk → default namen; de matching hieronder vindt dan niets
+            // en de aanroeper rendert per stuk. Niet fataal.
+            PluginLogger.LogException(ex);
+        }
+
+        var ids = pages.Select(p => new ElementId(p.ElementIds[0])).ToList();
+        doc.Export(folder, ids, options);
+
+        // Geproduceerde bestanden → page_<id>.pdf. Revit kan tekens in het sheetnummer
+        // aanpassen; daarom tolerant matchen op alleen letters/cijfers (lowercase).
+        // Dubbelzinnige matches overslaan → per-blad fallback.
+        var produced = Directory.GetFiles(folder, "*.pdf")
+            .Where(f => !Path.GetFileNameWithoutExtension(f).StartsWith("page_", StringComparison.Ordinal))
+            .GroupBy(f => NormalizeName(Path.GetFileNameWithoutExtension(f)), StringComparer.Ordinal)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        var matched = 0;
+        foreach (var page in pages)
+        {
+            var key = NormalizeName(page.Item?.Number ?? "");
+            if (key.Length == 0 || !produced.TryGetValue(key, out var file)) continue;
+            var target = Path.Combine(folder, page.FileName + ".pdf");
+            if (!File.Exists(target)) File.Move(file, target);
+            matched++;
+        }
+        PluginLogger.Log($"Batch-export: {matched}/{pages.Count} bladen gematcht.");
+    }
+
+    private static string NormalizeName(string name) =>
+        new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+
+    private static PDFExportOptions BuildPdfOptions(PdfSettings s)
+    {
         var options = new PDFExportOptions
         {
-            Combine = true,
-            FileName = job.FileName,
             ColorDepth = s.Colors switch
             {
                 ColorMode.GrayScale => ColorDepthType.GrayScale,
@@ -312,7 +507,7 @@ public sealed class RevitGateway : IRevitGateway
             options.OriginOffsetY = s.OriginOffsetYMm / 304.8;
         }
 
-        doc.Export(folder, ids, options);
+        return options;
     }
 
     private static void ExportDwg(Document doc, string folder, ExportJob job, ICollection<ElementId> ids, DwgSettings s)

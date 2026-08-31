@@ -1,6 +1,22 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-07-21 (standalone installer)
+> Laatst bijgewerkt: 2026-08-31 (v0.2.0 gemerged naar master; installer gebouwd)
+
+### Voltooid (31 augustus) — v0.2.0, branch `feature/pdf-split-group-values`
+- PDF "Combineer per parameterwaarde" kan de parameterwaarde nu splitsen op scheidingstekens (default `;,`, instelbaar): per token een eigen gecombineerde PDF, één blad kan in meerdere boekjes komen (case 2459 Parkview: `plattegronden;plattegronden-noord`)
+- Core: `PdfSettings.SplitGroupValues` / `GroupValueSeparators` (profiel-JSON `split_group_values`, `group_value_separators`; oude profielen laden met defaults), `JobBuilder.GroupedJobs` publiek met split-pad naast het ongewijzigde exclusieve pad
+- UI: checkbox + scheidingstekens-veld onder de groepeer-combobox (enabled bij combine-per-parameter); statusregel toont `N boekjes, M bladpagina's (K unieke sheets)`
+- Exportlaag ongewijzigd: `RevitGateway` exporteert per job, geen aanname "blad max 1×"
+- Tests: 43/43 groen (17 nieuwe: regressie split-uit, tokens/trim/leeg/duplicaat/separators/volgorde/prefix/sanitize/andere formaten, profiel round-trip + legacy-profiel)
+- CHANGELOG.md aangemaakt; versie 0.1.0 → 0.2.0 (`Directory.Build.props`, `.iss`)
+- Handmatig testscript: `docs/TEST-pdf-split-boekjes.md`
+- Deploy-Dev: build + publish OK (0.2.0.0 in `installer/publish`), kopie naar Addins geblokkeerd doordat Revit open stond → herhalen na sluiten Revit
+- **Viewparameters als token:** `IRevitGateway.EnsureViewParametersAsync` leest bij de eerste wissel naar Views alsnog de volledige viewparameters (opstart blijft licht); mutatie op de bestaande `SheetItem`-instanties. VM: `RebuildNamingTokens()` volgt de Sheets/Views-schakelaar; naamvoorbeeld gebruikt de actieve lijst; mislukte load → melding + retry bij volgende wissel. Runtime-getest (user-ack).
+- **Batch-render + exporttimer:** `BatchExportPages` rendert alle unieke bladen in één `doc.Export` (Combine=false, naming rule `SHEET_NUMBER`), hernoemt naar `page_<id>.pdf` via tolerante match (alleen letters/cijfers, lowercase; dubbelzinnig → per-blad fallback); views en mislukte matches renderen per stuk zoals voorheen. Statusregel toont verstreken tijd live en "Klaar in X — N bestanden". Runtime-getest (user-ack: "het gaat nu wel sneller").
+- **Bladen 1× renderen, boekjes samenstellen:** bij overlap levert `JobBuilder.AssemblyPlan` eerst `TempPage`-jobs (1 per uniek blad, selectievolgorde) en dan `Assemble`-jobs; `RevitGateway` rendert de bladen naar `%TEMP%\OpenAEC.Sheets\<guid>` en `PdfAssembler` (Core, PDFsharp 6.1.1 MIT) merget de pagina's incl. bookmark per blad, buiten de Revit-thread; fout → fallback native combine per boekje; tempmap altijd opgeruimd. `PdfSettings.AssembleBooklets` (`assemble_booklets`, default true). Tests 94/94. Runtime-getest (user-ack). Aandachtspunt: PDFsharp trekt `Microsoft.Extensions.Logging*` 8.0 mee in de plugin-map; Revit 2025 levert die zelf ook → bij laadproblemen versie-conflict checken in `%TEMP%\OpenAEC.Sheets.log`.
+- **Wildcards in de groepswaarde:** glob-patronen (`*`, `?`) in gesplitste tokens expanderen tegen de concrete boekjesnamen (`*` = voorblad in elk boekje, `Z_*` = situatietekening in alle woningboekjes). Patroon maakt nooit zelf een boekje; zonder match → melding in statusregel + blad in *overig*. `PdfSettings.ExpandWildcards` (JSON `expand_wildcards`, default true), checkbox op PDF-tab. `JobBuilder.GroupedJobs(..., warnings)`. Tests 85/85. Runtime-getest (user-ack: "werkt perfect").
+- **Runtime-getest in Revit 2025 op 2459 Parkview Gouda (user-ack): boekjes-split én naamgeving werken.** Boekjesnaam-veld nu ook op de Exporteren-tab naast de template (`5e4b89f`).
+- **Naamgeving uitgebreid (zelfde dag, zelfde branch):** vaste tekst + tokens was al mogelijk in de template maar onvindbaar → token-kiezer (Invoegen op cursor), live voorbeeld, betere hint. Nieuwe tokens `{Project Name}` `{Project Number}` `{Document Title}` `{Sheet Set}`; titleblock-instance-parameters ook als token (sheet wint). Tokens ook in boekjesnaam/prefix, DWF-combine en XML; `{Group}` plaatst de groepswaarde. `JobBuilder.Build` kreeg `projectNumber`; `ModelSnapshot.ProjectNumber` nieuw. Tests: 63/63
 
 ### Voltooid (21 juli)
 - Repo publiek gemaakt op GitHub (MIT-licentie toegevoegd; history vooraf gescand: geen secrets/binaries)
