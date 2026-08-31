@@ -4,13 +4,19 @@ Batch-export van Revit sheets en views naar **PDF, DWG, DGN, DWF, NWC, IFC, afbe
 
 Open vervanger voor DiRoots ProSheets, zonder exportlimiet of premium-licentie. Onderdeel van de OpenAEC-toolset (ribbon tab "OpenAEC", naast de BCF Manager).
 
+📦 **[Download de installer](https://github.com/jochem25/openaec-sheets-revit/releases/latest)** — per-user, geen adminrechten nodig (Revit 2025/2026).
+
+![OpenAEC Sheet Exporter — PDF-instellingen](docs/img/sheet-exporter-pdf.png)
+
 ## Features
 
 - **Selectie:** sheets/views met zoekfilter en View/Sheet Set-filter, eigen bestandsnaam per rij
 - **PDF:** native vector-PDF (Revit 2022+ API, geen printerdriver), los of gecombineerd
+- **PDF-boekjes:** combineer per parameterwaarde; waarde splitsen op `;`/`,` zodat één blad in meerdere boekjes komt; glob-wildcards (`*` = voorblad in elk boekje, `Z_*` = alle woningboekjes)
+- **Snel:** bladen worden 1× gerenderd en boekjes samengesteld (met bookmark per blad); batch-render in één Revit-call; exporttimer in de statusregel
 - **DWG/DGN:** gebruikt de export setups uit het model
 - **IFC:** versie, property sets, space boundaries, alle gangbare opties
-- **Naamgeving:** template met parameter-tokens — `{Sheet Number}_{Sheet Name}_{Current Revision}`
+- **Naamgeving:** vaste tekst + parameter-tokens — `TO_{Sheet Number}_{Sheet Name}` — met token-kiezer en live voorbeeld; document-tokens (`{Project Number}`, `{Sheet Set}`, …), titleblock- en viewparameters, `{Group}` in boekjesnamen
 - **Profielen:** alle instellingen als JSON opslaan/laden
 - **Voortgang:** live status per bestand, annuleerbaar
 
