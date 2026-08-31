@@ -108,6 +108,17 @@ Voeg toe aan de tabel hierboven (of aan het Parkview-model):
     matcht een blad niet (bijv. twee sheetnummers die alleen in leestekens verschillen), dan wordt dat
     blad per stuk gerenderd — trager, maar zelfde resultaat.
 
+## Viewparameters als token
+
+30. Tab *Selectie* → radio **Views**. Statusregel toont kort `Viewparameters lezen…` (eenmalig; daarna
+    direct). Tab *Exporteren* → token-kiezer bevat nu viewparameters (bijv. `View Scale`, `Discipline`,
+    `Fase`/`Phase`, projectspecifieke viewparams) i.p.v. de sheetparameters; document-tokens en `{Group}`
+    blijven bovenaan staan.
+31. Template `{View Type}_{View Name}_{View Scale}` → voorbeeldregel toont de waarden van de eerste
+    (geselecteerde) view; *Vernieuwen* bij losse PDF-bestanden geeft per view die naam. Terug naar radio
+    **Sheets** → kiezer toont weer de sheet-/titleblock-parameters; een gekozen token dat niet meer
+    bestaat springt terug naar het eerste token.
+
 ## Naamgeving: vaste tekst, tokens, boekjesnaam
 
 10. Tab *Exporteren* → **Naamtemplate** leegmaken en typen: `TO_` → de voorbeeldregel eronder toont

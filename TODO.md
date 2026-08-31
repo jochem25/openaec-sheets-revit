@@ -13,7 +13,9 @@
 - [x] Bladen 1× renderen + boekjes samenstellen (PDFsharp) i.p.v. 77× hetzelfde blad exporteren — 94/94 tests
 - [x] Samenstellen runtime-getest door user ("werkt allemaal goed")
 - [x] Batch-render: unieke bladen in één Export-call (naming rule sheetnummer) + exporttimer in statusregel
-- [ ] Runtime-test batch+timer (testscript stap 27-29): log `Batch-export: N/N bladen gematcht`, tijdsvergelijking, timer in statusregel
+- [x] Batch+timer runtime-getest door user ("het gaat nu wel sneller")
+- [x] Token-kiezer volgt Sheets/Views: viewparameters lazy ingelezen bij eerste wissel naar Views
+- [ ] Runtime-test view-tokens (testscript stap 30-31): wissel naar Views, kiezer toont viewparameters, template resolvet per view
 - [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
 

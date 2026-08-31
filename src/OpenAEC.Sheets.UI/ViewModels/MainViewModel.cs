@@ -48,7 +48,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText = "";
 
-    partial void OnShowSheetsChanged(bool value) => ApplyFilter();
+    partial void OnShowSheetsChanged(bool value)
+    {
+        ApplyFilter();
+        _ = SyncNamingTokensToActiveListAsync();
+    }
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     partial void OnSelectedSetFilterChanged(string value)
@@ -346,10 +350,55 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Opgeloste bestandsnaam voor het eerste geselecteerde (of eerste) blad.</summary>
     [ObservableProperty] private string _namingPreview = "";
 
-    /// <summary>Alle tokens voor de kiezer: document-tokens eerst, dan sheet-/titleblock-parameters.</summary>
+    /// <summary>
+    /// Alle tokens voor de kiezer: document-tokens en {Group} eerst, daarna de parameters van de
+    /// actieve lijst — sheet-/titleblock-parameters bij Sheets, viewparameters bij Views.
+    /// </summary>
     public ObservableCollection<string> NamingTokens { get; } = [];
 
     [ObservableProperty] private string? _selectedNamingToken;
+
+    private bool _viewParamsRequested;
+
+    /// <summary>
+    /// Views worden bij het openen licht ingelezen (alleen naam/type); bij de eerste wissel naar
+    /// Views halen we alsnog de volledige viewparameters op en vullen we de token-kiezer daarmee.
+    /// </summary>
+    private async Task SyncNamingTokensToActiveListAsync()
+    {
+        if (!ShowSheets && !_viewParamsRequested)
+        {
+            _viewParamsRequested = true;
+            try
+            {
+                StatusText = "Viewparameters lezen…";
+                await _gateway.EnsureViewParametersAsync();
+            }
+            catch (Exception ex)
+            {
+                _viewParamsRequested = false; // volgende wissel opnieuw proberen
+                StatusText = "Viewparameters lezen mislukt: " + ex.Message;
+            }
+        }
+        RebuildNamingTokens();
+        UpdateStatus();
+    }
+
+    private void RebuildNamingTokens()
+    {
+        var source = ShowSheets ? _sheetRows : _viewRows;
+        NamingTokens.Clear();
+        foreach (var token in NamingEngine.DocumentTokens) NamingTokens.Add(token);
+        NamingTokens.Add(NamingEngine.TokenGroup);
+        var names = source
+            .SelectMany(r => r.Item.Parameters.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in names) NamingTokens.Add(name);
+
+        if (SelectedNamingToken is null || !NamingTokens.Contains(SelectedNamingToken))
+            SelectedNamingToken = NamingTokens.FirstOrDefault();
+    }
 
     partial void OnNamingTemplateChanged(string value)
     {
@@ -371,7 +420,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void UpdateNamingPreview()
     {
-        var sample = _sheetRows.FirstOrDefault(r => r.IsSelected) ?? _sheetRows.FirstOrDefault();
+        var activeRows = ShowSheets ? _sheetRows : _viewRows;
+        var sample = activeRows.FirstOrDefault(r => r.IsSelected)
+            ?? activeRows.FirstOrDefault()
+            ?? _sheetRows.FirstOrDefault();
         if (sample is null)
         {
             NamingPreview = "";
@@ -574,11 +626,7 @@ public sealed partial class MainViewModel : ObservableObject
             SheetParameterNames.Add(name);
         }
 
-        NamingTokens.Clear();
-        foreach (var token in NamingEngine.DocumentTokens) NamingTokens.Add(token);
-        NamingTokens.Add(NamingEngine.TokenGroup);
-        foreach (var name in SheetParameterNames) NamingTokens.Add(name);
-        SelectedNamingToken = NamingTokens.FirstOrDefault();
+        RebuildNamingTokens();
 
         PhaseNames.Clear();
         PhaseNames.Add(DEFAULT_CHOICE);

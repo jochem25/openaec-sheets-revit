@@ -612,7 +612,7 @@
                             <TextBlock Text="Token:" Style="{StaticResource SettingLabel}" Width="110" />
                             <ComboBox Width="300" ItemsSource="{Binding NamingTokens}"
                                       SelectedItem="{Binding SelectedNamingToken}"
-                                      ToolTip="Document-tokens (Project Name/Number, Document Title, Sheet Set), {Group} en alle sheet- en titleblock-parameters" />
+                                      ToolTip="Document-tokens (Project Name/Number, Document Title, Sheet Set), {Group} en de parameters van de actieve lijst: sheet- en titleblock-parameters bij Sheets, viewparameters bij Views (worden bij de eerste wissel naar Views ingelezen)" />
                             <Button Content="Invoegen" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
                                     Click="OnInsertNamingToken" ToolTip="Voegt {token} in op de cursorpositie van het veld waar je het laatst in typte (naamtemplate of boekjesnaam)" />
                         </StackPanel>

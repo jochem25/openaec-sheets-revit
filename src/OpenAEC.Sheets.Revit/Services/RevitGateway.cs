@@ -221,6 +221,29 @@ public sealed class RevitGateway : IRevitGateway
 
     private static int FeetToMm(double feet) => (int)Math.Round(feet * 304.8);
 
+    private bool _viewParametersLoaded;
+
+    public async Task EnsureViewParametersAsync(IProgress<string>? progress = null)
+    {
+        if (_viewParametersLoaded) return;
+        await _handler.ExecuteAsync(app =>
+        {
+            var doc = app.ActiveUIDocument.Document;
+            var views = _itemCache.Values.Where(i => !i.IsSheet).ToList();
+            var n = 0;
+            foreach (var item in views)
+            {
+                if (n++ % 50 == 0) Report(progress, $"Viewparameters lezen ({n}/{views.Count})…");
+                if (doc.GetElement(new ElementId(item.Id)) is not View view) continue;
+                var collected = CollectParameters(view);
+                // Bestaande sleutels (View Name / View Type) behouden zoals ze waren
+                foreach (var (key, value) in item.Parameters) collected[key] = value;
+                item.Parameters = collected;
+            }
+            _viewParametersLoaded = true;
+        });
+    }
+
     // ── Exporteren ──────────────────────────────────────────────────────────
 
     public async Task ExportAsync(

@@ -17,6 +17,12 @@ public interface IRevitGateway
     /// <param name="progress">Fase-updates voor de laad-overlay ("Sheets lezen 40/120…").</param>
     Task<ModelSnapshot> GetSnapshotAsync(IProgress<string>? progress = null);
 
+    /// <summary>
+    /// Leest alsnog de volledige parameters van de views in (bij het openen worden views bewust
+    /// licht ingelezen). Vult de bestaande SheetItem-instanties aan; tweede aanroep is een no-op.
+    /// </summary>
+    Task EnsureViewParametersAsync(IProgress<string>? progress = null);
+
     /// <summary>Voert de jobs één voor één uit op de Revit-thread en rapporteert voortgang.</summary>
     Task ExportAsync(
         IReadOnlyList<ExportJob> jobs,
