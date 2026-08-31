@@ -5,9 +5,9 @@
 - [x] UI: checkbox + scheidingstekens, statusregel met boekjes-telling
 - [x] Tests 43/43, CHANGELOG, versie 0.2.0
 - [x] Geïnstalleerd in `%APPDATA%\Autodesk\Revit\Addins\2025\OpenAEC.Sheets` (0.2.0.0, hash-geverifieerd) terwijl Revit open stond
-- [ ] Na Revit-herstart: `*.old.37272`-restanten (0.1.0-DLL's) in de plugin-map verwijderen of gewoon `Deploy-Dev.ps1` draaien
+- [ ] Na Revit-herstart: `*.old.<pid>`-restanten in de plugin-map verwijderen of gewoon `Deploy-Dev.ps1` draaien
 - [x] Naamgeving: vaste tekst + tokens zichtbaar gemaakt (token-kiezer, live voorbeeld), document-tokens, titleblock-parameters als token, tokens in boekjesnaam (`{Group}`) — 63/63 tests
-- [ ] Handmatige test volgens `docs/TEST-pdf-split-boekjes.md` op 2459 Parkview Gouda (incl. sectie "Naamgeving")
+- [x] Runtime-test op 2459 Parkview Gouda: boekjes-split + naamtemplate/boekjesnaam met tokens — user-ack "werkt goed" (2026-08-31)
 - [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
 
