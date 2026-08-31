@@ -24,7 +24,11 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Build failed!" -ForegroundColor Red; exit
 
 New-Item -ItemType Directory -Path $PluginDir -Force | Out-Null
 
-Copy-Item "$RepoRoot\installer\OpenAEC.Sheets.Revit.addin" "$AddinsDir\" -Force
+# Assembly-pad absoluut maken (relatief pad wordt niet overal betrouwbaar
+# geresolved door Revit)
+$manifest = [IO.File]::ReadAllText("$RepoRoot\installer\OpenAEC.Sheets.Revit.addin")
+$manifest = $manifest -replace '<Assembly>[^<]*</Assembly>', "<Assembly>$PluginDir\OpenAEC.Sheets.Revit.dll</Assembly>"
+[IO.File]::WriteAllText("$AddinsDir\OpenAEC.Sheets.Revit.addin", $manifest, (New-Object System.Text.UTF8Encoding $true))
 Copy-Item "$PublishDir\*" "$PluginDir\" -Force -Recurse
 
 Write-Host "Deployed to: $PluginDir" -ForegroundColor Green
