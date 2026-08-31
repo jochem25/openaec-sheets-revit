@@ -16,7 +16,7 @@
 - [x] Batch+timer runtime-getest door user ("het gaat nu wel sneller")
 - [x] Token-kiezer volgt Sheets/Views: viewparameters lazy ingelezen bij eerste wissel naar Views
 - [x] View-tokens runtime-getest door user ("het werkt")
-- [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
+- [x] Merge naar master + installer 0.2.0 gebouwd (2026-08-31)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
 
 ## v0.1 → v0.2
