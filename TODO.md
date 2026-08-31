@@ -1,5 +1,14 @@
 # TODO — OpenAEC Sheet Exporter
 
+## v0.2 — PDF waarde splitsen (branch `feature/pdf-split-group-values`, 2026-08-31)
+- [x] Core: `SplitGroupValues` + `GroupValueSeparators` in PdfSettings, split-pad in `JobBuilder.GroupedJobs`
+- [x] UI: checkbox + scheidingstekens, statusregel met boekjes-telling
+- [x] Tests 43/43, CHANGELOG, versie 0.2.0
+- [ ] `Deploy-Dev.ps1` herhalen met Revit gesloten (kopie naar Addins was geblokkeerd)
+- [ ] Handmatige test volgens `docs/TEST-pdf-split-boekjes.md` op 2459 Parkview Gouda
+- [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
+- [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
+
 ## v0.1 → v0.2
 - [ ] Runtime-test in Revit 2025 met 3BM-model (alle 8 formaten)
 - [ ] Runtime-test set-autoselectie + boekjes-naamgeving (2026-07-18; deploy wachtte op gesloten Revit)

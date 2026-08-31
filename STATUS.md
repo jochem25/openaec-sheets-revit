@@ -1,6 +1,16 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-07-21 (standalone installer)
+> Laatst bijgewerkt: 2026-08-31 (v0.2.0 — PDF waarde splitsen: blad in meerdere boekjes)
+
+### Voltooid (31 augustus) — v0.2.0, branch `feature/pdf-split-group-values`
+- PDF "Combineer per parameterwaarde" kan de parameterwaarde nu splitsen op scheidingstekens (default `;,`, instelbaar): per token een eigen gecombineerde PDF, één blad kan in meerdere boekjes komen (case 2459 Parkview: `plattegronden;plattegronden-noord`)
+- Core: `PdfSettings.SplitGroupValues` / `GroupValueSeparators` (profiel-JSON `split_group_values`, `group_value_separators`; oude profielen laden met defaults), `JobBuilder.GroupedJobs` publiek met split-pad naast het ongewijzigde exclusieve pad
+- UI: checkbox + scheidingstekens-veld onder de groepeer-combobox (enabled bij combine-per-parameter); statusregel toont `N boekjes, M bladpagina's (K unieke sheets)`
+- Exportlaag ongewijzigd: `RevitGateway` exporteert per job, geen aanname "blad max 1×"
+- Tests: 43/43 groen (17 nieuwe: regressie split-uit, tokens/trim/leeg/duplicaat/separators/volgorde/prefix/sanitize/andere formaten, profiel round-trip + legacy-profiel)
+- CHANGELOG.md aangemaakt; versie 0.1.0 → 0.2.0 (`Directory.Build.props`, `.iss`)
+- Handmatig testscript: `docs/TEST-pdf-split-boekjes.md`
+- Deploy-Dev: build + publish OK (0.2.0.0 in `installer/publish`), kopie naar Addins geblokkeerd doordat Revit open stond → herhalen na sluiten Revit
 
 ### Voltooid (21 juli)
 - Repo publiek gemaakt op GitHub (MIT-licentie toegevoegd; history vooraf gescand: geen secrets/binaries)

@@ -74,4 +74,51 @@ public class ProfileStoreTests : IDisposable
     {
         Assert.Null(_store.Load("bestaat-niet"));
     }
+
+    [Fact]
+    public void SaveAndLoad_RoundTripsSplitGroupValues()
+    {
+        var profile = new ExportProfile { Name = "boekjes" };
+        profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+        profile.Pdf.GroupByParameter = "Boekje";
+        profile.Pdf.SplitGroupValues = true;
+        profile.Pdf.GroupValueSeparators = "|";
+
+        _store.Save(profile);
+        var loaded = _store.Load("boekjes");
+
+        Assert.NotNull(loaded);
+        Assert.True(loaded.Pdf.SplitGroupValues);
+        Assert.Equal("|", loaded.Pdf.GroupValueSeparators);
+
+        var json = File.ReadAllText(Path.Combine(_tempDir, "boekjes.json"));
+        Assert.Contains("\"split_group_values\": true", json);
+        Assert.Contains("\"group_value_separators\": \"|\"", json);
+    }
+
+    [Fact]
+    public void Load_LegacyProfileWithoutSplitFields_UsesDefaults()
+    {
+        // Profiel van vóór v0.2: geen split_group_values / group_value_separators in de JSON
+        const string legacyJson = """
+            {
+              "name": "oud",
+              "enabled_formats": [ "pdf" ],
+              "pdf": {
+                "file_mode": "combine_by_parameter",
+                "group_by_parameter": "bouwdeel",
+                "combined_file_name": "2786"
+              }
+            }
+            """;
+        File.WriteAllText(Path.Combine(_tempDir, "oud.json"), legacyJson);
+
+        var loaded = _store.Load("oud");
+
+        Assert.NotNull(loaded);
+        Assert.Equal(PdfFileMode.CombineByParameter, loaded.Pdf.FileMode);
+        Assert.Equal("bouwdeel", loaded.Pdf.GroupByParameter);
+        Assert.False(loaded.Pdf.SplitGroupValues);
+        Assert.Equal(PdfSettings.DefaultGroupValueSeparators, loaded.Pdf.GroupValueSeparators);
+    }
 }

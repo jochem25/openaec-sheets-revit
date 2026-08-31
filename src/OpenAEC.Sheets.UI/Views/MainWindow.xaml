@@ -209,6 +209,19 @@
                                               SelectedItem="{Binding Profile.Pdf.GroupByParameter}"
                                               IsEnabled="{Binding PdfCombineByParameter}"
                                               ToolTip="Eén gecombineerde PDF per unieke waarde, bijv. per bouwdeel of discipline" />
+                                    <CheckBox Content="Waarde splitsen (blad in meerdere boekjes)" Style="{StaticResource SettingCheck}"
+                                              Margin="20,2,0,2"
+                                              IsChecked="{Binding PdfSplitGroupValues}"
+                                              IsEnabled="{Binding PdfCombineByParameter}"
+                                              ToolTip="Splitst de parameterwaarde op ; of , — elk deel wordt een eigen gecombineerde PDF. Eén blad kan zo in meerdere boekjes komen." />
+                                    <StackPanel Orientation="Horizontal" Margin="40,0,0,4"
+                                                IsEnabled="{Binding PdfCombineByParameter}">
+                                        <TextBlock Text="Scheidingstekens:" Style="{StaticResource SettingLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBox Style="{StaticResource SearchBox}" Width="60"
+                                                 Text="{Binding PdfGroupValueSeparators, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsEnabled="{Binding PdfSplitGroupValues}"
+                                                 ToolTip="Elk teken splitst afzonderlijk. Standaard ; en , — leeg = niet splitsen." />
+                                    </StackPanel>
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
                                              Text="{Binding Profile.Pdf.CombinedFileName}"

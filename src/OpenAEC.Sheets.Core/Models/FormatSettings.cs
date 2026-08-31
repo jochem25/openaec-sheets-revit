@@ -44,6 +44,16 @@ public sealed class PdfSettings
     public string GroupByParameter { get; set; } = "";
     /// <summary>Bestandsnaam bij CombineAll; bij CombineByParameter gebruikt als prefix.</summary>
     public string CombinedFileName { get; set; } = "";
+    /// <summary>
+    /// Bij CombineByParameter: splits de parameterwaarde op <see cref="GroupValueSeparators"/>
+    /// en maak per deel een eigen gecombineerde PDF. Eén blad kan zo in meerdere boekjes komen
+    /// (bijv. "plattegronden;plattegronden-noord"). Standaard uit = één blad in één groep.
+    /// </summary>
+    public bool SplitGroupValues { get; set; }
+    /// <summary>Scheidingstekens voor <see cref="SplitGroupValues"/>; elk teken splitst afzonderlijk.</summary>
+    public string GroupValueSeparators { get; set; } = DefaultGroupValueSeparators;
+
+    public const string DefaultGroupValueSeparators = ";,";
     public bool VectorHiddenLines { get; set; } = true;
     public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
     public ColorMode Colors { get; set; } = ColorMode.Color;

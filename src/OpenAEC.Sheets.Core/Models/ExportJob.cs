@@ -47,7 +47,7 @@ public static class JobBuilder
                     jobs.Add(CombinedJob(items, format, bookletName, documentTitle));
                     break;
                 case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineByParameter:
-                    jobs.AddRange(GroupedJobs(items, format, profile.Pdf.GroupByParameter, profile.Pdf.CombinedFileName));
+                    jobs.AddRange(GroupedJobs(items, format, profile.Pdf));
                     break;
                 case ExportFormat.Dwf when profile.Dwf.Combine:
                     jobs.Add(CombinedJob(items, format, profile.Dwf.CombinedFileName, documentTitle));
@@ -78,26 +78,93 @@ public static class JobBuilder
         return NamingEngine.Sanitize(name);
     }
 
-    /// <summary>Eén gecombineerde job per unieke waarde van de groepeer-parameter.</summary>
-    private static IEnumerable<ExportJob> GroupedJobs(
+    /// <summary>
+    /// Eén gecombineerde job per unieke waarde van de groepeer-parameter.
+    /// Met <see cref="PdfSettings.SplitGroupValues"/> wordt de waarde eerst gesplitst op de
+    /// scheidingstekens en belandt een item in elke tokengroep (blad in meerdere boekjes).
+    /// Groepen alfabetisch (OrdinalIgnoreCase); items binnen een groep in selectievolgorde.
+    /// </summary>
+    public static List<ExportJob> GroupedJobs(IReadOnlyList<SheetItem> items, ExportFormat format, PdfSettings pdf) =>
+        pdf.SplitGroupValues
+            ? SplitGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName, pdf.GroupValueSeparators)
+            : ExclusiveGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName);
+
+    /// <summary>Klassieke groepering: 1 item = 1 groep (hele parameterwaarde is de sleutel).</summary>
+    private static List<ExportJob> ExclusiveGroupedJobs(
         IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix)
     {
         var groups = items
             .GroupBy(i => i.Parameters.GetValueOrDefault(groupParameter, "").Trim())
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var group in groups)
+        return groups
+            .Select(g => GroupJob(format, g.Key, g.Select(i => i.Id), prefix))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Gesplitste groepering: per item de waarde splitsen op de scheidingstekens, tokens trimmen,
+    /// lege tokens negeren en duplicaten binnen één item ontdubbelen (case-insensitive).
+    /// Groepssleutels zijn case-insensitive (Windows-bestandsnamen zijn dat ook); het label
+    /// krijgt de schrijfwijze van het eerst geziene item.
+    /// </summary>
+    private static List<ExportJob> SplitGroupedJobs(
+        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix, string separators)
+    {
+        var order = new List<string>();
+        var groups = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in items)
         {
-            var label = string.IsNullOrWhiteSpace(group.Key) ? "overig" : group.Key;
-            var name = string.IsNullOrWhiteSpace(prefix) ? label : prefix + "_" + label;
-            yield return new ExportJob
+            var raw = item.Parameters.GetValueOrDefault(groupParameter, "");
+            foreach (var token in SplitGroupValue(raw, separators))
             {
-                Format = format,
-                ElementIds = group.Select(i => i.Id).ToList(),
-                FileName = NamingEngine.Sanitize(name),
-                GroupLabel = label,
-            };
+                if (!groups.TryGetValue(token, out var ids))
+                {
+                    ids = [];
+                    groups[token] = ids;
+                    order.Add(token);
+                }
+                ids.Add(item.Id);
+            }
         }
+
+        return order
+            .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+            .Select(k => GroupJob(format, k, groups[k], prefix))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Splitst een groepswaarde in unieke, getrimde tokens. Zonder bruikbare tokens
+    /// (lege waarde, alleen scheidingstekens) levert dit één lege token op → groep "overig".
+    /// Lege scheidingstekens-string = niet splitsen.
+    /// </summary>
+    public static IReadOnlyList<string> SplitGroupValue(string value, string separators)
+    {
+        var tokens = string.IsNullOrEmpty(separators)
+            ? new[] { value.Trim() }
+            : value.Split(separators.ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var unique = tokens
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return unique.Count == 0 ? new[] { "" } : unique;
+    }
+
+    private static ExportJob GroupJob(ExportFormat format, string key, IEnumerable<long> ids, string prefix)
+    {
+        var label = string.IsNullOrWhiteSpace(key) ? "overig" : key;
+        var name = string.IsNullOrWhiteSpace(prefix) ? label : prefix + "_" + label;
+        return new ExportJob
+        {
+            Format = format,
+            ElementIds = ids.ToList(),
+            FileName = NamingEngine.Sanitize(name),
+            GroupLabel = label,
+        };
     }
 
     /// <summary>

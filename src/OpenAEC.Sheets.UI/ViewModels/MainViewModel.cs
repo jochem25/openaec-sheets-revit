@@ -96,7 +96,24 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var selectedSheets = _sheetRows.Count(r => r.IsSelected);
         var selectedViews = _viewRows.Count(r => r.IsSelected);
-        StatusText = $"{selectedSheets} sheets en {selectedViews} views geselecteerd";
+        StatusText = $"{selectedSheets} sheets en {selectedViews} views geselecteerd" + BookletSummary();
+    }
+
+    /// <summary>
+    /// Bij "combineer per parameterwaarde" + splitsen: aantal boekjes, totaal aantal bladpagina's
+    /// over alle boekjes (incl. dubbeltellingen) en het aantal unieke sheets.
+    /// </summary>
+    private string BookletSummary()
+    {
+        if (!PdfEnabled || !PdfCombineByParameter || !PdfSplitGroupValues) return "";
+
+        var items = SelectedItems();
+        if (items.Count == 0) return "";
+
+        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf);
+        var pages = jobs.Sum(j => j.ElementIds.Count);
+        var unique = jobs.SelectMany(j => j.ElementIds).Distinct().Count();
+        return $" — {jobs.Count} boekjes, {pages} bladpagina's ({unique} unieke sheets)";
     }
 
     private IReadOnlyList<SheetItem> SelectedItems() =>
@@ -188,7 +205,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _imgEnabled;
     [ObservableProperty] private bool _xmlEnabled;
 
-    partial void OnPdfEnabledChanged(bool value) => ToggleFormat(ExportFormat.Pdf, value);
+    partial void OnPdfEnabledChanged(bool value)
+    {
+        ToggleFormat(ExportFormat.Pdf, value);
+        UpdateStatus();
+    }
     partial void OnDwgEnabledChanged(bool value) => ToggleFormat(ExportFormat.Dwg, value);
     partial void OnDgnEnabledChanged(bool value) => ToggleFormat(ExportFormat.Dgn, value);
     partial void OnDwfEnabledChanged(bool value) => ToggleFormat(ExportFormat.Dwf, value);
@@ -215,6 +236,23 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnPdfCombineByParameterChanged(bool value)
     {
         if (value) Profile.Pdf.FileMode = PdfFileMode.CombineByParameter;
+        UpdateStatus();
+    }
+
+    // Waarde splitsen: één blad in meerdere boekjes (↔ Profile.Pdf.SplitGroupValues / GroupValueSeparators)
+    [ObservableProperty] private bool _pdfSplitGroupValues;
+    [ObservableProperty] private string _pdfGroupValueSeparators = PdfSettings.DefaultGroupValueSeparators;
+
+    partial void OnPdfSplitGroupValuesChanged(bool value)
+    {
+        Profile.Pdf.SplitGroupValues = value;
+        UpdateStatus();
+    }
+
+    partial void OnPdfGroupValueSeparatorsChanged(string value)
+    {
+        Profile.Pdf.GroupValueSeparators = value ?? "";
+        UpdateStatus();
     }
 
     private void SyncPdfFileModeFromProfile()
@@ -222,6 +260,8 @@ public sealed partial class MainViewModel : ObservableObject
         PdfSeparateFiles = Profile.Pdf.FileMode == PdfFileMode.Separate;
         PdfCombineAll = Profile.Pdf.FileMode == PdfFileMode.CombineAll;
         PdfCombineByParameter = Profile.Pdf.FileMode == PdfFileMode.CombineByParameter;
+        PdfSplitGroupValues = Profile.Pdf.SplitGroupValues;
+        PdfGroupValueSeparators = Profile.Pdf.GroupValueSeparators;
     }
 
     private void ToggleFormat(ExportFormat format, bool enabled)
@@ -275,6 +315,7 @@ public sealed partial class MainViewModel : ObservableObject
             Jobs.Add(new JobRowViewModel(job));
 
         ProgressText = $"{Jobs.Count} bestanden te exporteren";
+        UpdateStatus(); // groepeer-parameter is direct aan Profile.Pdf gebonden → hier de boekjes-telling verversen
     }
 
     [RelayCommand]
