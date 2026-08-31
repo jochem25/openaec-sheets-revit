@@ -37,7 +37,7 @@ public sealed class RevitGateway : IRevitGateway
             var doc = app.ActiveUIDocument.Document;
 
             // Alle titleblocks in één query i.p.v. één collector per sheet
-            var sizeBySheetId = CollectSheetSizes(doc);
+            var titleBlockBySheetId = CollectTitleBlocks(doc);
 
             var allSheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -59,8 +59,10 @@ public sealed class RevitGateway : IRevitGateway
                     Number = sheet.SheetNumber,
                     Name = sheet.Name,
                     Revision = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "",
-                    Size = sizeBySheetId.GetValueOrDefault(sheet.Id, ""),
-                    Parameters = CollectParameters(sheet),
+                    Size = SheetSize(titleBlockBySheetId.GetValueOrDefault(sheet.Id)),
+                    // Sheetparameters + (aanvullend) instance-parameters van het titleblock,
+                    // zodat bijv. een fase- of stempelparameter op het titleblock ook als {token} werkt
+                    Parameters = CollectParameters(sheet, titleBlockBySheetId.GetValueOrDefault(sheet.Id)),
                 };
                 _itemCache[item.Id] = item;
                 sheets.Add(item);
@@ -130,6 +132,7 @@ public sealed class RevitGateway : IRevitGateway
                 Sheets = sheets,
                 Views = views,
                 ProjectName = doc.ProjectInformation?.Name ?? "",
+                ProjectNumber = doc.ProjectInformation?.Number ?? "",
                 ViewSheetSets = sets,
                 DwgSetupNames = SetupNames(doc, typeof(ExportDWGSettings)),
                 DgnSetupNames = SetupNames(doc, typeof(ExportDGNSettings)),
@@ -151,22 +154,28 @@ public sealed class RevitGateway : IRevitGateway
             () => { }, System.Windows.Threading.DispatcherPriority.Render);
     }
 
-    private static Dictionary<ElementId, string> CollectSheetSizes(Document doc)
+    /// <summary>Eerste titleblock per sheet (één collector voor alle sheets).</summary>
+    private static Dictionary<ElementId, Element> CollectTitleBlocks(Document doc)
     {
-        var result = new Dictionary<ElementId, string>();
+        var result = new Dictionary<ElementId, Element>();
         foreach (var titleBlock in new FilteredElementCollector(doc)
                      .OfCategory(BuiltInCategory.OST_TitleBlocks)
                      .WhereElementIsNotElementType())
         {
             var sheetId = titleBlock.OwnerViewId;
             if (sheetId == ElementId.InvalidElementId || result.ContainsKey(sheetId)) continue;
-
-            var width = titleBlock.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
-            var height = titleBlock.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
-            if (width > 0 && height > 0)
-                result[sheetId] = $"{FeetToMm(width)}x{FeetToMm(height)}";
+            result[sheetId] = titleBlock;
         }
         return result;
+    }
+
+    /// <summary>Bladformaat "breedte x hoogte" in mm uit het titleblock; leeg zonder titleblock.</summary>
+    private static string SheetSize(Element? titleBlock)
+    {
+        if (titleBlock is null) return "";
+        var width = titleBlock.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
+        var height = titleBlock.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
+        return width > 0 && height > 0 ? $"{FeetToMm(width)}x{FeetToMm(height)}" : "";
     }
 
     private static List<string> SetupNames(Document doc, Type setupType) =>
@@ -176,9 +185,20 @@ public sealed class RevitGateway : IRevitGateway
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    private static Dictionary<string, string> CollectParameters(Element element)
+    /// <summary>
+    /// Parameters van het element (naam → waarde). Een optioneel tweede element (titleblock)
+    /// vult alleen namen aan die het eerste element niet heeft — de sheet wint bij gelijke naam.
+    /// </summary>
+    private static Dictionary<string, string> CollectParameters(Element element, Element? secondary = null)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        AddParameters(result, element);
+        if (secondary is not null) AddParameters(result, secondary);
+        return result;
+    }
+
+    private static void AddParameters(Dictionary<string, string> result, Element element)
+    {
         foreach (Parameter param in element.Parameters)
         {
             if (!param.HasValue) continue;
@@ -197,7 +217,6 @@ public sealed class RevitGateway : IRevitGateway
             if (!string.IsNullOrEmpty(value))
                 result[name] = value!;
         }
-        return result;
     }
 
     private static int FeetToMm(double feet) => (int)Math.Round(feet * 304.8);

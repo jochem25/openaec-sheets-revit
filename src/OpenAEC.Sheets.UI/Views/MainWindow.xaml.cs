@@ -45,6 +45,16 @@ public partial class MainWindow : Window
             tab.IsSelected = true;
     }
 
+    private void OnInsertNamingToken(object sender, RoutedEventArgs e)
+    {
+        var caret = NamingTemplateBox.CaretIndex;
+        var token = _viewModel.SelectedNamingToken ?? "";
+        _viewModel.InsertNamingToken(token, caret);
+        // Cursor achter het ingevoegde token en focus terug naar het veld
+        NamingTemplateBox.Focus();
+        NamingTemplateBox.CaretIndex = Math.Min(caret + token.Length + 2, NamingTemplateBox.Text.Length);
+    }
+
     private void OnBrowseFolder(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog

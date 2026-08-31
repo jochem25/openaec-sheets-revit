@@ -225,7 +225,7 @@
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
                                              Text="{Binding Profile.Pdf.CombinedFileName}"
-                                             ToolTip="Bij 'combineer alles': basisnaam; projectnaam en printset-naam worden er automatisch achter gezet. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde." />
+                                             ToolTip="Bij 'combineer alles': basisnaam; projectnaam en printset-naam worden er automatisch achter gezet. Bij 'per parameterwaarde': prefix vóór de groepswaarde. Leeg = documentnaam / groepswaarde.&#x0a;Tokens toegestaan, bijv. {Project Number}_{tekening_fase} — dan wordt niets automatisch achtergevoegd; met {Group} bepaal je zelf waar de groepswaarde komt. Tokens worden opgelost via het eerste blad van het boekje." />
                                 </StackPanel>
                             </GroupBox>
                         </WrapPanel>
@@ -580,13 +580,24 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <TextBlock Text="Naamtemplate:" Style="{StaticResource SettingLabel}" Width="110" />
-                            <TextBox Width="500" Style="{StaticResource SearchBox}"
-                                     Text="{Binding Profile.NamingTemplate, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox x:Name="NamingTemplateBox" Width="500" Style="{StaticResource SearchBox}"
+                                     Text="{Binding NamingTemplate, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Vaste tekst en {tokens} vrij te combineren, bijv. TO_{Sheet Number}_{Sheet Name} of {Project Number}_{tekening_fase}_{Sheet Number}" />
                             <CheckBox Content="Submap per formaat" Margin="16,0,0,0" VerticalAlignment="Center"
                                       IsChecked="{Binding Profile.SplitByFormat}" />
                         </StackPanel>
-                        <TextBlock Margin="114,0,0,8" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                   Text="Tokens: {Sheet Number}, {Sheet Name}, {Current Revision} — elke sheetparameter kan als {Naam} gebruikt worden. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="Token:" Style="{StaticResource SettingLabel}" Width="110" />
+                            <ComboBox Width="300" ItemsSource="{Binding NamingTokens}"
+                                      SelectedItem="{Binding SelectedNamingToken}"
+                                      ToolTip="Document-tokens (Project Name/Number, Document Title, Sheet Set) en alle sheet- en titleblock-parameters" />
+                            <Button Content="Invoegen" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                    Click="OnInsertNamingToken" ToolTip="Voegt {token} in op de cursorpositie in de naamtemplate" />
+                        </StackPanel>
+                        <TextBlock Margin="114,0,0,2" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                   Text="Vaste tekst mag overal: TO_{Sheet Number}_{Sheet Name}. Tokens: alle sheet- en titleblock-parameters plus {Project Name}, {Project Number}, {Document Title}, {Sheet Set}. Eigen bestandsnaam op tabblad Selectie overschrijft de template." />
+                        <TextBlock Margin="114,0,0,8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}"
+                                   Text="{Binding NamingPreview}" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Content="Voorbeeld vernieuwen" Style="{StaticResource SecondaryButton}"
                                     Command="{Binding RefreshJobsCommand}" />

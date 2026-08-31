@@ -66,6 +66,31 @@ Checks:
    bevat `"split_group_values": true` en `"group_value_separators": ";,"`.
 9. Een profiel van vóór 0.2.0 laden → laadt zonder fout, splitsen staat uit.
 
+## Naamgeving: vaste tekst, tokens, boekjesnaam
+
+10. Tab *Exporteren* → **Naamtemplate** leegmaken en typen: `TO_` → de voorbeeldregel eronder toont
+    direct `Voorbeeld (TO-100n): TO` (vaste tekst blijft staan; `_` aan het eind wordt door Sanitize weggehaald).
+11. Token-kiezer: kies `Sheet Number` → **Invoegen** → template `TO_{Sheet Number}`, voorbeeld `TO_TO-100n`.
+    Cursor staat achter het token; nogmaals invoegen plakt op de cursorpositie.
+12. Kies in de kiezer `tekening_fase` (of de fase-parameter zoals die in dit model heet — staat hij op het
+    titleblock i.p.v. op de sheet, dan staat hij er nu óók tussen) → template `{tekening_fase}_{Sheet Number}`
+    → voorbeeld `TO_TO-100n`.
+13. Document-tokens: `{Project Number}_{Sheet Number}` → voorbeeld begint met het projectnummer uit
+    Project Information (`2459_…`). `{Sheet Set}` is leeg zolang *Alle sheets/views* actief is en krijgt
+    de setnaam zodra je een set kiest.
+14. Radio **Losse bestanden** → *Vernieuwen* → kolom Bestandsnaam volgt de template voor elk blad.
+15. Boekjesnaam met tokens: radio **Combineer alles**, Bestandsnaam `{Project Number}_{tekening_fase}_boekje`
+    → *Vernieuwen* → precies `2459_TO_boekje` (géén projectnaam/set automatisch erachter).
+    Zonder tokens (`2459`) blijft het `2459_<Project Name>_<set>` zoals voorheen.
+16. Prefix met `{Group}`: radio **Combineer per parameterwaarde** + splitsen aan, prefix
+    `{Group}_{Project Number}` → bestanden `plattegronden_2459.pdf`, `plattegronden-noord_2459.pdf`, …
+    Prefix `{Project Number}` (zonder `{Group}`) → `2459_plattegronden.pdf` enz.
+
+Checks:
+- [ ] Voorbeeldregel loopt live mee tijdens typen en na wijzigen van de selectie
+- [ ] Token-kiezer bevat bovenaan Project Name / Project Number / Document Title / Sheet Set, daarna alle sheet- én titleblock-parameters
+- [ ] Profiel opslaan/laden bewaart de template; oud profiel laadt met zijn eigen template
+
 ## Bekende aandachtspunten
 
 - Groepssleutels zijn bij splitsen case-insensitive (`Noord` en `noord` → één boekje, label van het eerst

@@ -11,6 +11,7 @@
 - CHANGELOG.md aangemaakt; versie 0.1.0 → 0.2.0 (`Directory.Build.props`, `.iss`)
 - Handmatig testscript: `docs/TEST-pdf-split-boekjes.md`
 - Deploy-Dev: build + publish OK (0.2.0.0 in `installer/publish`), kopie naar Addins geblokkeerd doordat Revit open stond → herhalen na sluiten Revit
+- **Naamgeving uitgebreid (zelfde dag, zelfde branch):** vaste tekst + tokens was al mogelijk in de template maar onvindbaar → token-kiezer (Invoegen op cursor), live voorbeeld, betere hint. Nieuwe tokens `{Project Name}` `{Project Number}` `{Document Title}` `{Sheet Set}`; titleblock-instance-parameters ook als token (sheet wint). Tokens ook in boekjesnaam/prefix, DWF-combine en XML; `{Group}` plaatst de groepswaarde. `JobBuilder.Build` kreeg `projectNumber`; `ModelSnapshot.ProjectNumber` nieuw. Tests: 63/63
 
 ### Voltooid (21 juli)
 - Repo publiek gemaakt op GitHub (MIT-licentie toegevoegd; history vooraf gescand: geen secrets/binaries)

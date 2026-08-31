@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using OpenAEC.Sheets.Core.Models;
+using OpenAEC.Sheets.Core.Naming;
 using OpenAEC.Sheets.Core.Services;
 
 namespace OpenAEC.Sheets.UI.ViewModels;
@@ -17,6 +18,7 @@ public sealed partial class MainViewModel : ObservableObject
     private List<SheetRowViewModel> _viewRows = [];
     private Dictionary<string, HashSet<long>> _setContents = new();
     private string _projectName = "";
+    private string _projectNumber = "";
     private CancellationTokenSource? _exportCts;
 
     public MainViewModel(IRevitGateway gateway, ProfileStore profileStore)
@@ -97,6 +99,7 @@ public sealed partial class MainViewModel : ObservableObject
         var selectedSheets = _sheetRows.Count(r => r.IsSelected);
         var selectedViews = _viewRows.Count(r => r.IsSelected);
         StatusText = $"{selectedSheets} sheets en {selectedViews} views geselecteerd" + BookletSummary();
+        UpdateNamingPreview();
     }
 
     /// <summary>
@@ -110,7 +113,7 @@ public sealed partial class MainViewModel : ObservableObject
         var items = SelectedItems();
         if (items.Count == 0) return "";
 
-        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf);
+        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, CurrentDocumentTokens());
         var pages = jobs.Sum(j => j.ElementIds.Count);
         var unique = jobs.SelectMany(j => j.ElementIds).Distinct().Count();
         return $" — {jobs.Count} boekjes, {pages} bladpagina's ({unique} unieke sheets)";
@@ -168,6 +171,7 @@ public sealed partial class MainViewModel : ObservableObject
         SyncFormatFlagsFromProfile();
         SyncXmlParametersFromProfile();
         SyncPdfFileModeFromProfile();
+        SyncNamingFromProfile();
     }
 
     [RelayCommand]
@@ -291,6 +295,59 @@ public sealed partial class MainViewModel : ObservableObject
             param.IsSelected = selected.Contains(param.Name);
     }
 
+    // ── Naamgeving (template met vaste tekst + {tokens}) ────────────────────
+
+    /// <summary>Spiegel van Profile.NamingTemplate zodat het voorbeeld live meeloopt tijdens typen.</summary>
+    [ObservableProperty] private string _namingTemplate = "";
+
+    /// <summary>Opgeloste bestandsnaam voor het eerste geselecteerde (of eerste) blad.</summary>
+    [ObservableProperty] private string _namingPreview = "";
+
+    /// <summary>Alle tokens voor de kiezer: document-tokens eerst, dan sheet-/titleblock-parameters.</summary>
+    public ObservableCollection<string> NamingTokens { get; } = [];
+
+    [ObservableProperty] private string? _selectedNamingToken;
+
+    partial void OnNamingTemplateChanged(string value)
+    {
+        Profile.NamingTemplate = value ?? "";
+        UpdateNamingPreview();
+    }
+
+    private void SyncNamingFromProfile()
+    {
+        NamingTemplate = Profile.NamingTemplate;
+        UpdateNamingPreview();
+    }
+
+    private IReadOnlyDictionary<string, string> CurrentDocumentTokens()
+    {
+        var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
+        return JobBuilder.DocumentTokens(_gateway.DocumentTitle, _projectName, _projectNumber, setName);
+    }
+
+    private void UpdateNamingPreview()
+    {
+        var sample = _sheetRows.FirstOrDefault(r => r.IsSelected) ?? _sheetRows.FirstOrDefault();
+        if (sample is null)
+        {
+            NamingPreview = "";
+            return;
+        }
+        var name = NamingEngine.Apply(Profile.NamingTemplate, sample.Item.Parameters, CurrentDocumentTokens());
+        NamingPreview = $"Voorbeeld ({sample.Number}): {NamingEngine.Sanitize(name)}";
+    }
+
+    /// <summary>Token invoegen; de view geeft de caret-positie door, anders achteraan.</summary>
+    public void InsertNamingToken(string? token, int caretIndex = -1)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return;
+        var insert = "{" + token + "}";
+        var current = NamingTemplate ?? "";
+        var at = caretIndex < 0 || caretIndex > current.Length ? current.Length : caretIndex;
+        NamingTemplate = current.Insert(at, insert);
+    }
+
     // ── Export ──────────────────────────────────────────────────────────────
 
     public ObservableCollection<JobRowViewModel> Jobs { get; } = [];
@@ -311,7 +368,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         Jobs.Clear();
         var setName = SelectedSetFilter == ALL_SETS ? null : SelectedSetFilter;
-        foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle, _projectName, setName))
+        foreach (var job in JobBuilder.Build(SelectedItems(), Profile, _gateway.DocumentTitle, _projectName, setName, _projectNumber))
             Jobs.Add(new JobRowViewModel(job));
 
         ProgressText = $"{Jobs.Count} bestanden te exporteren";
@@ -412,6 +469,7 @@ public sealed partial class MainViewModel : ObservableObject
         _sheetRows = snapshot.Sheets.Select(s => Track(new SheetRowViewModel(s))).ToList();
         _viewRows = snapshot.Views.Select(v => Track(new SheetRowViewModel(v))).ToList();
         _projectName = snapshot.ProjectName;
+        _projectNumber = snapshot.ProjectNumber;
 
         SetFilters.Clear();
         SetFilters.Add(ALL_SETS);
@@ -439,6 +497,11 @@ public sealed partial class MainViewModel : ObservableObject
             SheetParameterNames.Add(name);
         }
 
+        NamingTokens.Clear();
+        foreach (var token in NamingEngine.DocumentTokens) NamingTokens.Add(token);
+        foreach (var name in SheetParameterNames) NamingTokens.Add(name);
+        SelectedNamingToken = NamingTokens.FirstOrDefault();
+
         PhaseNames.Clear();
         PhaseNames.Add(DEFAULT_CHOICE);
         foreach (var name in snapshot.PhaseNames) PhaseNames.Add(name);
@@ -448,6 +511,7 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var name in snapshot.CategoryMappingNames) CategoryMappingNames.Add(name);
 
         SyncPdfFileModeFromProfile();
+        SyncNamingFromProfile();
 
         ProfileNames.Clear();
         foreach (var name in _profileStore.ListNames()) ProfileNames.Add(name);

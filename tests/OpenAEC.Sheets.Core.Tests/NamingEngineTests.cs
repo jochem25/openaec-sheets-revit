@@ -53,6 +53,39 @@ public class NamingEngineTests
     }
 
     [Fact]
+    public void Apply_FixedTextAroundTokens_IsKeptLiterally()
+    {
+        Assert.Equal("TO_plattegrond begane grond", NamingEngine.Apply("TO_{Sheet Name}", Values));
+        Assert.Equal("TO_TO_110-B_def", NamingEngine.Apply("TO_{Sheet Number}-{Current Revision}_def", Values));
+        Assert.Equal("alleen tekst", NamingEngine.Apply("alleen tekst", Values));
+    }
+
+    [Fact]
+    public void Apply_WithFallback_ItemValueWinsOverFallback()
+    {
+        var fallback = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Project Number"] = "2459",
+            ["Sheet Number"] = "NIET-GEBRUIKT",
+        };
+
+        var result = NamingEngine.Apply("{Project Number}_{Sheet Number}_{Onbekend}", Values, fallback);
+
+        Assert.Equal("2459_TO_110_", result);
+    }
+
+    [Theory]
+    [InlineData("{Sheet Number}", true)]
+    [InlineData("TO_{x}", true)]
+    [InlineData("TO_", false)]
+    [InlineData("", false)]
+    [InlineData("{}", false)]
+    public void HasTokens_Cases(string template, bool expected)
+    {
+        Assert.Equal(expected, NamingEngine.HasTokens(template));
+    }
+
+    [Fact]
     public void ExtractTokens_FindsDistinctTokens()
     {
         var tokens = NamingEngine.ExtractTokens("{A}_{B}_{A}");

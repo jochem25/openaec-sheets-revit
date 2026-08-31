@@ -6,7 +6,8 @@
 - [x] Tests 43/43, CHANGELOG, versie 0.2.0
 - [x] Geïnstalleerd in `%APPDATA%\Autodesk\Revit\Addins\2025\OpenAEC.Sheets` (0.2.0.0, hash-geverifieerd) terwijl Revit open stond
 - [ ] Na Revit-herstart: `*.old.37272`-restanten (0.1.0-DLL's) in de plugin-map verwijderen of gewoon `Deploy-Dev.ps1` draaien
-- [ ] Handmatige test volgens `docs/TEST-pdf-split-boekjes.md` op 2459 Parkview Gouda
+- [x] Naamgeving: vaste tekst + tokens zichtbaar gemaakt (token-kiezer, live voorbeeld), document-tokens, titleblock-parameters als token, tokens in boekjesnaam (`{Group}`) — 63/63 tests
+- [ ] Handmatige test volgens `docs/TEST-pdf-split-boekjes.md` op 2459 Parkview Gouda (incl. sectie "Naamgeving")
 - [ ] Na runtime-test: merge naar master + installer bouwen (`Build-Installer.ps1`)
 - [ ] Optioneel: groepeer-combobox via VM-property laten lopen zodat de boekjes-telling ook bij parameterwissel direct ververst (nu bij selectie/checkbox/Vernieuwen)
 
@@ -17,7 +18,7 @@
 - [ ] PDF paper size/orientation override per sheet (nu: sheet-formaat = Default)
 - [ ] Foutafhandeling NWC zonder Navisworks-exporter → nette melding
 - [ ] Iconen per formaat-tab (nu alleen tekst)
-- [ ] Live preview van bestandsnaam in Selectie-tab
+- [x] ~~Live preview van bestandsnaam~~ → voorbeeldregel onder de naamtemplate (tab Exporteren, 2026-08-31)
 
 ## v0.3+
 - [ ] V/S Sets aanmaken/opslaan vanuit de tool

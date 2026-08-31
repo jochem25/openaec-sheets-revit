@@ -27,33 +27,43 @@ public sealed class ExportJob
 
 public static class JobBuilder
 {
+    private static readonly IReadOnlyDictionary<string, string> NoValues =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Bouwt de lijst exportjobs uit de selectie en het profiel.
     /// Combine-formaten (PDF/DWF/XML) leveren één job voor alle items, anders één job per item.
+    /// Naast sheetparameters zijn in elke naam de document-tokens bruikbaar:
+    /// {Project Name}, {Project Number}, {Document Title}, {Sheet Set}.
     /// </summary>
     public static List<ExportJob> Build(
         IReadOnlyList<SheetItem> items, ExportProfile profile, string documentTitle,
-        string projectName = "", string? sheetSetName = null)
+        string projectName = "", string? sheetSetName = null, string projectNumber = "")
     {
         var jobs = new List<ExportJob>();
         if (items.Count == 0) return jobs;
+
+        var docTokens = DocumentTokens(documentTitle, projectName, projectNumber, sheetSetName);
 
         foreach (var format in profile.EnabledFormats)
         {
             switch (format)
             {
                 case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineAll:
-                    var bookletName = BookletName(profile.Pdf.CombinedFileName, documentTitle, projectName, sheetSetName);
-                    jobs.Add(CombinedJob(items, format, bookletName, documentTitle));
+                    var bookletName = BookletName(
+                        profile.Pdf.CombinedFileName, documentTitle, projectName, sheetSetName, items[0], docTokens);
+                    jobs.Add(CombinedJob(items, format, bookletName));
                     break;
                 case ExportFormat.Pdf when profile.Pdf.FileMode == PdfFileMode.CombineByParameter:
-                    jobs.AddRange(GroupedJobs(items, format, profile.Pdf));
+                    jobs.AddRange(GroupedJobs(items, format, profile.Pdf, docTokens));
                     break;
                 case ExportFormat.Dwf when profile.Dwf.Combine:
-                    jobs.Add(CombinedJob(items, format, profile.Dwf.CombinedFileName, documentTitle));
+                    jobs.Add(CombinedJob(items, format,
+                        CombinedName(profile.Dwf.CombinedFileName, documentTitle, items[0], docTokens)));
                     break;
                 case ExportFormat.Xml:
-                    jobs.Add(CombinedJob(items, format, profile.Xml.FileName, documentTitle));
+                    jobs.Add(CombinedJob(items, format,
+                        CombinedName(profile.Xml.FileName, documentTitle, items[0], docTokens)));
                     break;
                 default:
                     jobs.AddRange(items.Select(item => new ExportJob
@@ -61,7 +71,7 @@ public static class JobBuilder
                         Format = format,
                         ElementIds = [item.Id],
                         Item = item,
-                        FileName = ResolveFileName(item, profile),
+                        FileName = ResolveFileName(item, profile, docTokens),
                     }));
                     break;
             }
@@ -70,11 +80,24 @@ public static class JobBuilder
         return jobs;
     }
 
-    public static string ResolveFileName(SheetItem item, ExportProfile profile)
+    /// <summary>Document-tokens die voor elk blad gelden (naast de sheetparameters).</summary>
+    public static IReadOnlyDictionary<string, string> DocumentTokens(
+        string documentTitle, string projectName = "", string projectNumber = "", string? sheetSetName = null) =>
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [NamingEngine.TokenProjectName] = projectName ?? "",
+            [NamingEngine.TokenProjectNumber] = projectNumber ?? "",
+            [NamingEngine.TokenDocumentTitle] = documentTitle ?? "",
+            [NamingEngine.TokenSheetSet] = sheetSetName ?? "",
+        };
+
+    /// <summary>Bestandsnaam per blad: eigen naam van de rij, anders de naamtemplate (vaste tekst + tokens).</summary>
+    public static string ResolveFileName(
+        SheetItem item, ExportProfile profile, IReadOnlyDictionary<string, string>? documentTokens = null)
     {
         var name = !string.IsNullOrWhiteSpace(item.CustomFileName)
             ? item.CustomFileName
-            : NamingEngine.Apply(profile.NamingTemplate, item.Parameters);
+            : NamingEngine.Apply(profile.NamingTemplate, item.Parameters, documentTokens);
         return NamingEngine.Sanitize(name);
     }
 
@@ -84,21 +107,24 @@ public static class JobBuilder
     /// scheidingstekens en belandt een item in elke tokengroep (blad in meerdere boekjes).
     /// Groepen alfabetisch (OrdinalIgnoreCase); items binnen een groep in selectievolgorde.
     /// </summary>
-    public static List<ExportJob> GroupedJobs(IReadOnlyList<SheetItem> items, ExportFormat format, PdfSettings pdf) =>
+    public static List<ExportJob> GroupedJobs(
+        IReadOnlyList<SheetItem> items, ExportFormat format, PdfSettings pdf,
+        IReadOnlyDictionary<string, string>? documentTokens = null) =>
         pdf.SplitGroupValues
-            ? SplitGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName, pdf.GroupValueSeparators)
-            : ExclusiveGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName);
+            ? SplitGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName, pdf.GroupValueSeparators, documentTokens)
+            : ExclusiveGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName, documentTokens);
 
     /// <summary>Klassieke groepering: 1 item = 1 groep (hele parameterwaarde is de sleutel).</summary>
     private static List<ExportJob> ExclusiveGroupedJobs(
-        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix)
+        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix,
+        IReadOnlyDictionary<string, string>? documentTokens)
     {
         var groups = items
             .GroupBy(i => i.Parameters.GetValueOrDefault(groupParameter, "").Trim())
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
         return groups
-            .Select(g => GroupJob(format, g.Key, g.Select(i => i.Id), prefix))
+            .Select(g => GroupJob(format, g.Key, g.ToList(), prefix, documentTokens))
             .ToList();
     }
 
@@ -109,29 +135,30 @@ public static class JobBuilder
     /// krijgt de schrijfwijze van het eerst geziene item.
     /// </summary>
     private static List<ExportJob> SplitGroupedJobs(
-        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix, string separators)
+        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix, string separators,
+        IReadOnlyDictionary<string, string>? documentTokens)
     {
         var order = new List<string>();
-        var groups = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+        var groups = new Dictionary<string, List<SheetItem>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items)
         {
             var raw = item.Parameters.GetValueOrDefault(groupParameter, "");
             foreach (var token in SplitGroupValue(raw, separators))
             {
-                if (!groups.TryGetValue(token, out var ids))
+                if (!groups.TryGetValue(token, out var members))
                 {
-                    ids = [];
-                    groups[token] = ids;
+                    members = [];
+                    groups[token] = members;
                     order.Add(token);
                 }
-                ids.Add(item.Id);
+                members.Add(item);
             }
         }
 
         return order
             .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
-            .Select(k => GroupJob(format, k, groups[k], prefix))
+            .Select(k => GroupJob(format, k, groups[k], prefix, documentTokens))
             .ToList();
     }
 
@@ -154,39 +181,80 @@ public static class JobBuilder
         return unique.Count == 0 ? new[] { "" } : unique;
     }
 
-    private static ExportJob GroupJob(ExportFormat format, string key, IEnumerable<long> ids, string prefix)
+    /// <summary>
+    /// Boekjesnaam per groep. De prefix mag tokens bevatten (opgelost via het eerste blad van de
+    /// groep + document-tokens). Bevat de prefix {Group}, dan bepaalt de gebruiker zelf waar het
+    /// groepslabel komt; anders wordt het label als "prefix_label" achter de prefix gezet.
+    /// </summary>
+    private static ExportJob GroupJob(
+        ExportFormat format, string key, IReadOnlyList<SheetItem> members, string prefix,
+        IReadOnlyDictionary<string, string>? documentTokens)
     {
         var label = string.IsNullOrWhiteSpace(key) ? "overig" : key;
-        var name = string.IsNullOrWhiteSpace(prefix) ? label : prefix + "_" + label;
+
+        string name;
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            name = label;
+        }
+        else if (NamingEngine.HasTokens(prefix))
+        {
+            var values = new Dictionary<string, string>(members[0].Parameters, StringComparer.OrdinalIgnoreCase)
+            {
+                [NamingEngine.TokenGroup] = label,
+            };
+            var resolved = NamingEngine.Apply(prefix, values, documentTokens);
+            var placesGroup = NamingEngine.ExtractTokens(prefix)
+                .Contains(NamingEngine.TokenGroup, StringComparer.OrdinalIgnoreCase);
+            name = placesGroup ? resolved : resolved + "_" + label;
+        }
+        else
+        {
+            name = prefix + "_" + label;
+        }
+
         return new ExportJob
         {
             Format = format,
-            ElementIds = ids.ToList(),
+            ElementIds = members.Select(i => i.Id).ToList(),
             FileName = NamingEngine.Sanitize(name),
             GroupLabel = label,
         };
     }
 
     /// <summary>
-    /// Bestandsnaam van het gecombineerde boekje: basis (ingevulde naam of documenttitel),
-    /// dan projectnaam als tweede veld en printset-naam als derde veld; lege velden vervallen.
+    /// Bestandsnaam van het gecombineerde boekje.
+    /// Zonder tokens: basis (ingevulde naam of documenttitel), dan projectnaam als tweede veld en
+    /// printset-naam als derde veld; lege velden vervallen.
+    /// Mét tokens: de gebruiker bepaalt de naam volledig zelf — niets wordt automatisch achtergevoegd;
+    /// tokens worden opgelost via het eerste blad + document-tokens.
     /// </summary>
-    public static string BookletName(string configuredName, string documentTitle, string projectName, string? sheetSetName)
+    public static string BookletName(
+        string configuredName, string documentTitle, string projectName, string? sheetSetName,
+        SheetItem? firstItem = null, IReadOnlyDictionary<string, string>? documentTokens = null)
     {
+        if (NamingEngine.HasTokens(configuredName))
+            return NamingEngine.Apply(configuredName, firstItem?.Parameters ?? NoValues, documentTokens);
+
         var baseName = string.IsNullOrWhiteSpace(configuredName) ? documentTitle : configuredName.Trim();
         var parts = new[] { baseName, projectName.Trim(), sheetSetName?.Trim() ?? "" }
             .Where(p => !string.IsNullOrWhiteSpace(p));
         return string.Join("_", parts);
     }
 
-    private static ExportJob CombinedJob(IReadOnlyList<SheetItem> items, ExportFormat format, string configuredName, string documentTitle)
-    {
-        var name = string.IsNullOrWhiteSpace(configuredName) ? documentTitle : configuredName;
-        return new ExportJob
+    /// <summary>Naam voor DWF-combine / XML: ingevulde naam (tokens toegestaan) of documenttitel.</summary>
+    private static string CombinedName(
+        string configuredName, string documentTitle, SheetItem firstItem,
+        IReadOnlyDictionary<string, string>? documentTokens) =>
+        string.IsNullOrWhiteSpace(configuredName)
+            ? documentTitle
+            : NamingEngine.Apply(configuredName, firstItem.Parameters, documentTokens);
+
+    private static ExportJob CombinedJob(IReadOnlyList<SheetItem> items, ExportFormat format, string name) =>
+        new()
         {
             Format = format,
             ElementIds = items.Select(i => i.Id).ToList(),
             FileName = NamingEngine.Sanitize(name),
         };
-    }
 }
