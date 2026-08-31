@@ -398,6 +398,12 @@ public sealed partial class MainViewModel : ObservableObject
         NamingPreview = text;
     }
 
+    /// <summary>Verstreken tijd als "47 s" / "3:24 min" / "1:03:24 uur".</summary>
+    public static string FormatDuration(TimeSpan t) =>
+        t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00} uur"
+        : t.TotalMinutes >= 1 ? $"{t.Minutes}:{t.Seconds:00} min"
+        : $"{t.Seconds} s";
+
     /// <summary>
     /// Token invoegen in de naamtemplate of (<paramref name="intoBooklet"/>) in de boekjesnaam;
     /// de view geeft de caret-positie door, anders achteraan.
@@ -462,6 +468,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsExporting = true;
         ProgressValue = 0;
         _exportCts = new CancellationTokenSource();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         var progress = new Progress<ExportProgress>(p =>
         {
@@ -470,27 +477,28 @@ public sealed partial class MainViewModel : ObservableObject
             if (row is not null)
                 row.Status = p.Error is null ? "✓ Gereed" : "✗ " + p.Error;
             ProgressText = p.Error is null
-                ? $"{p.JobIndex + 1}/{p.Total} — {p.FileName}"
-                : $"{p.JobIndex + 1}/{p.Total} — FOUT bij {p.FileName}";
+                ? $"{p.JobIndex + 1}/{p.Total} — {p.FileName} — {FormatDuration(stopwatch.Elapsed)}"
+                : $"{p.JobIndex + 1}/{p.Total} — FOUT bij {p.FileName} — {FormatDuration(stopwatch.Elapsed)}";
         });
 
         try
         {
             var jobs = Jobs.Select(j => j.Job).ToList();
             await _gateway.ExportAsync(jobs, Profile, Profile.OutputFolder, progress, _exportCts.Token);
+            stopwatch.Stop();
             var failures = Jobs.Count(j => j.Status.StartsWith('✗'));
             var files = jobs.Count(j => j.Kind != ExportJobKind.TempPage);
             ProgressText = failures == 0
-                ? $"Klaar — {files} bestanden geëxporteerd naar {Profile.OutputFolder}"
-                : $"Klaar met {failures} fout(en) — zie statuskolom";
+                ? $"Klaar in {FormatDuration(stopwatch.Elapsed)} — {files} bestanden geëxporteerd naar {Profile.OutputFolder}"
+                : $"Klaar in {FormatDuration(stopwatch.Elapsed)} met {failures} fout(en) — zie statuskolom";
         }
         catch (OperationCanceledException)
         {
-            ProgressText = "Export geannuleerd.";
+            ProgressText = $"Export geannuleerd na {FormatDuration(stopwatch.Elapsed)}.";
         }
         catch (Exception ex)
         {
-            ProgressText = "Export mislukt: " + ex.Message;
+            ProgressText = $"Export mislukt na {FormatDuration(stopwatch.Elapsed)}: " + ex.Message;
         }
         finally
         {

@@ -234,6 +234,31 @@ public sealed class RevitGateway : IRevitGateway
         string? tempDir = null;
         try
         {
+            // Alle unieke bladen in ÉÉN Revit-call renderen (Combine=false + naming rule):
+            // schrapt de ExternalEvent-rondreis (wachten op Revit-idle) per blad.
+            // Bladen die hierna geen page_<id>.pdf hebben (views, mislukt, geen naming rule)
+            // worden in de loop hieronder alsnog per stuk gerenderd.
+            var tempPages = jobs.Where(j => j.Kind == ExportJobKind.TempPage).ToList();
+            var sheetPages = tempPages.Where(j => j.Item?.IsSheet == true).ToList();
+            if (sheetPages.Count > 1)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                tempDir = CreateTempDir();
+                var batchDir = tempDir;
+                progress.Report(new ExportProgress(-1, jobs.Count,
+                    $"{sheetPages.Count} bladen renderen (één batch)…", null));
+                try
+                {
+                    await _handler.ExecuteAsync(app => BatchExportPages(
+                        app.ActiveUIDocument.Document, batchDir, sheetPages, profile.Pdf));
+                }
+                catch (Exception ex)
+                {
+                    PluginLogger.LogException(ex);
+                    PluginLogger.Log("Batch-export mislukt; bladen worden per stuk gerenderd.");
+                }
+            }
+
             for (var i = 0; i < jobs.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -247,9 +272,10 @@ public sealed class RevitGateway : IRevitGateway
                         case ExportJobKind.TempPage:
                             tempDir ??= CreateTempDir();
                             var pageDir = tempDir;
-                            await _handler.ExecuteAsync(app => ExportPdf(
-                                app.ActiveUIDocument.Document, pageDir, job,
-                                job.ElementIds.Select(id => new ElementId(id)).ToList(), profile.Pdf));
+                            if (!File.Exists(Path.Combine(pageDir, job.FileName + ".pdf")))
+                                await _handler.ExecuteAsync(app => ExportPdf(
+                                    app.ActiveUIDocument.Document, pageDir, job,
+                                    job.ElementIds.Select(id => new ElementId(id)).ToList(), profile.Pdf));
                             break;
 
                         case ExportJobKind.Assemble:
@@ -347,10 +373,65 @@ public sealed class RevitGateway : IRevitGateway
 
     private static void ExportPdf(Document doc, string folder, ExportJob job, IList<ElementId> ids, PdfSettings s)
     {
+        var options = BuildPdfOptions(s);
+        options.Combine = true;
+        options.FileName = job.FileName;
+        doc.Export(folder, ids, options);
+    }
+
+    /// <summary>
+    /// Rendert meerdere bladen in één Export-call naar losse PDF's (naming rule = sheetnummer)
+    /// en hernoemt de resultaten naar page_&lt;elementid&gt;.pdf. Bladen die niet te matchen zijn
+    /// blijven ontbreken en worden door de aanroeper per stuk gerenderd.
+    /// </summary>
+    private static void BatchExportPages(Document doc, string folder, IReadOnlyList<ExportJob> pages, PdfSettings s)
+    {
+        var options = BuildPdfOptions(s);
+        options.Combine = false;
+        try
+        {
+            var part = TableCellCombinedParameterData.Create();
+            part.ParamId = new ElementId(BuiltInParameter.SHEET_NUMBER);
+            options.SetNamingRule(new List<TableCellCombinedParameterData> { part });
+        }
+        catch (Exception ex)
+        {
+            // Geen naming rule mogelijk → default namen; de matching hieronder vindt dan niets
+            // en de aanroeper rendert per stuk. Niet fataal.
+            PluginLogger.LogException(ex);
+        }
+
+        var ids = pages.Select(p => new ElementId(p.ElementIds[0])).ToList();
+        doc.Export(folder, ids, options);
+
+        // Geproduceerde bestanden → page_<id>.pdf. Revit kan tekens in het sheetnummer
+        // aanpassen; daarom tolerant matchen op alleen letters/cijfers (lowercase).
+        // Dubbelzinnige matches overslaan → per-blad fallback.
+        var produced = Directory.GetFiles(folder, "*.pdf")
+            .Where(f => !Path.GetFileNameWithoutExtension(f).StartsWith("page_", StringComparison.Ordinal))
+            .GroupBy(f => NormalizeName(Path.GetFileNameWithoutExtension(f)), StringComparer.Ordinal)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        var matched = 0;
+        foreach (var page in pages)
+        {
+            var key = NormalizeName(page.Item?.Number ?? "");
+            if (key.Length == 0 || !produced.TryGetValue(key, out var file)) continue;
+            var target = Path.Combine(folder, page.FileName + ".pdf");
+            if (!File.Exists(target)) File.Move(file, target);
+            matched++;
+        }
+        PluginLogger.Log($"Batch-export: {matched}/{pages.Count} bladen gematcht.");
+    }
+
+    private static string NormalizeName(string name) =>
+        new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+
+    private static PDFExportOptions BuildPdfOptions(PdfSettings s)
+    {
         var options = new PDFExportOptions
         {
-            Combine = true,
-            FileName = job.FileName,
             ColorDepth = s.Colors switch
             {
                 ColorMode.GrayScale => ColorDepthType.GrayScale,
@@ -403,7 +484,7 @@ public sealed class RevitGateway : IRevitGateway
             options.OriginOffsetY = s.OriginOffsetYMm / 304.8;
         }
 
-        doc.Export(folder, ids, options);
+        return options;
     }
 
     private static void ExportDwg(Document doc, string folder, ExportJob job, ICollection<ElementId> ids, DwgSettings s)

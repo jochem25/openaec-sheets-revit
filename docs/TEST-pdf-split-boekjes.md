@@ -97,6 +97,17 @@ Voeg toe aan de tabel hierboven (of aan het Parkview-model):
     toch een bestand (native), log `%TEMP%\OpenAEC.Sheets.log` meldt "Samenstellen van '…' mislukt, terugvallen op native export".
     Zonder overlap (geen `*`, geen dubbel blad) verschijnen géén `(blad 1×)`-rijen: gedrag als voorheen.
 
+## Batch-render en timer
+
+27. Zelfde selectie als stap 23 → Exporteren. Statusregel begint met `N bladen renderen (één batch)…`,
+    daarna lopen de `(blad 1×)`-rijen vrijwel direct op ✓ (ze zijn al gerenderd door de batch);
+    achter elke voortgangsmelding loopt de verstreken tijd mee (`… — 1:47 min`).
+28. Na afloop: `Klaar in M:SS min — N bestanden geëxporteerd naar …` in de statusregel (geen popup).
+    Log `%TEMP%\OpenAEC.Sheets.log`: regel `Batch-export: X/X bladen gematcht`.
+29. Tijdsvergelijking t.o.v. de vorige run (zelfde selectie): batch hoort merkbaar sneller te zijn;
+    matcht een blad niet (bijv. twee sheetnummers die alleen in leestekens verschillen), dan wordt dat
+    blad per stuk gerenderd — trager, maar zelfde resultaat.
+
 ## Naamgeving: vaste tekst, tokens, boekjesnaam
 
 10. Tab *Exporteren* → **Naamtemplate** leegmaken en typen: `TO_` → de voorbeeldregel eronder toont
