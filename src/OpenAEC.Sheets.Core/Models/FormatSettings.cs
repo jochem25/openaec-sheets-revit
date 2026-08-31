@@ -54,6 +54,13 @@ public sealed class PdfSettings
     public string GroupValueSeparators { get; set; } = DefaultGroupValueSeparators;
 
     public const string DefaultGroupValueSeparators = ";,";
+    /// <summary>
+    /// Bij <see cref="SplitGroupValues"/>: een gesplitst token mag een glob-patroon zijn
+    /// (<c>*</c> = 0 of meer tekens, <c>?</c> = 1 teken) en wordt geëxpandeerd tegen de concrete
+    /// boekjesnamen van de selectie. Zo komt een voorblad met "*" in elk boekje en een
+    /// situatietekening met "Z_*" in alle woningboekjes. Een patroon maakt nooit zelf een boekje aan.
+    /// </summary>
+    public bool ExpandWildcards { get; set; } = true;
     public bool VectorHiddenLines { get; set; } = true;
     public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
     public ColorMode Colors { get; set; } = ColorMode.Color;

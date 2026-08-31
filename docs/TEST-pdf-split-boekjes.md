@@ -66,6 +66,23 @@ Checks:
    bevat `"split_group_values": true` en `"group_value_separators": ";,"`.
 9. Een profiel van vóór 0.2.0 laden → laadt zonder fout, splitsen staat uit.
 
+## Wildcards: voorblad in elk boekje, situatietekening in alle woningboekjes
+
+Voeg toe aan de tabel hierboven (of aan het Parkview-model):
+
+| Sheet | Boekje | Verwacht in |
+|-------|--------|-------------|
+| TO-000 voorblad | `*` | **elk** boekje, als eerste blad (selectievolgorde) |
+| TO-001 situatie | `plattegronden-*` | plattegronden-noord, plattegronden-zuid (niet in `plattegronden`) |
+| TO-002 legenda | `*;details` | elk boekje, 1× in details |
+| TO-003 test | `bestaat-*` | nergens matcht → in *overig*, statusregel meldt `patroon 'bestaat-*' matcht geen enkel boekje` |
+
+18. PDF-tab: *Waarde splitsen* aan, ☑ **Wildcards expanderen (\* en ?)** (staat standaard aan; alleen actief bij splitsen).
+19. Selecteer alle 10 sheets → statusregel: boekjes-telling stijgt (voorblad telt in elk boekje mee) + de waarschuwing voor `bestaat-*`.
+20. *Vernieuwen* → géén regel met `*` in de bestandsnaam; `2459_plattegronden-noord.pdf` bevat TO-000, TO-100n, TO-001, TO-100t, TO-002 (in selectievolgorde).
+21. Exporteren → open `2459_details.pdf`: voorblad, TO-300, legenda — legenda staat er 1×.
+22. Checkbox uit → `*`, `plattegronden-*` enz. worden letterlijke groepen (bestandsnaam met `-` i.p.v. `*` door Sanitize); geen waarschuwing.
+
 ## Naamgeving: vaste tekst, tokens, boekjesnaam
 
 10. Tab *Exporteren* → **Naamtemplate** leegmaken en typen: `TO_` → de voorbeeldregel eronder toont

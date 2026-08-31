@@ -104,62 +104,123 @@ public static class JobBuilder
     /// <summary>
     /// Eén gecombineerde job per unieke waarde van de groepeer-parameter.
     /// Met <see cref="PdfSettings.SplitGroupValues"/> wordt de waarde eerst gesplitst op de
-    /// scheidingstekens en belandt een item in elke tokengroep (blad in meerdere boekjes).
+    /// scheidingstekens en belandt een item in elke tokengroep (blad in meerdere boekjes); met
+    /// <see cref="PdfSettings.ExpandWildcards"/> mogen tokens glob-patronen zijn (zie <see cref="GroupJobs"/>).
     /// Groepen alfabetisch (OrdinalIgnoreCase); items binnen een groep in selectievolgorde.
     /// </summary>
+    /// <param name="warnings">Optioneel: ontvangt meldingen zoals "patroon 'X' matcht geen enkel boekje".</param>
     public static List<ExportJob> GroupedJobs(
         IReadOnlyList<SheetItem> items, ExportFormat format, PdfSettings pdf,
-        IReadOnlyDictionary<string, string>? documentTokens = null) =>
-        pdf.SplitGroupValues
-            ? SplitGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName, pdf.GroupValueSeparators, documentTokens)
-            : ExclusiveGroupedJobs(items, format, pdf.GroupByParameter, pdf.CombinedFileName, documentTokens);
-
-    /// <summary>Klassieke groepering: 1 item = 1 groep (hele parameterwaarde is de sleutel).</summary>
-    private static List<ExportJob> ExclusiveGroupedJobs(
-        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix,
-        IReadOnlyDictionary<string, string>? documentTokens)
+        IReadOnlyDictionary<string, string>? documentTokens = null, ICollection<string>? warnings = null)
     {
-        var groups = items
-            .GroupBy(i => i.Parameters.GetValueOrDefault(groupParameter, "").Trim())
-            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+        // Klassiek: hele (getrimde) waarde is de sleutel, hoofdlettergevoelig zoals voorheen, geen wildcards.
+        // Gesplitst: per scheidingsteken; sleutels case-insensitive (Windows-bestandsnamen zijn dat ook),
+        // het label krijgt de schrijfwijze van het eerst geziene item.
+        Func<SheetItem, IReadOnlyList<string>> keysOf = pdf.SplitGroupValues
+            ? item => SplitGroupValue(item.Parameters.GetValueOrDefault(pdf.GroupByParameter, ""), pdf.GroupValueSeparators)
+            : item => new[] { item.Parameters.GetValueOrDefault(pdf.GroupByParameter, "").Trim() };
+        var comparer = pdf.SplitGroupValues ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var expand = pdf.SplitGroupValues && pdf.ExpandWildcards;
 
-        return groups
-            .Select(g => GroupJob(format, g.Key, g.ToList(), prefix, documentTokens))
-            .ToList();
+        return GroupJobs(items, format, keysOf, comparer, expand, pdf.CombinedFileName, documentTokens, warnings);
     }
 
     /// <summary>
-    /// Gesplitste groepering: per item de waarde splitsen op de scheidingstekens, tokens trimmen,
-    /// lege tokens negeren en duplicaten binnen één item ontdubbelen (case-insensitive).
-    /// Groepssleutels zijn case-insensitive (Windows-bestandsnamen zijn dat ook); het label
-    /// krijgt de schrijfwijze van het eerst geziene item.
+    /// Groepeert items op de sleutels uit <paramref name="keysOf"/>.
+    /// Met <paramref name="expandWildcards"/>: tokens met <c>*</c>/<c>?</c> zijn patronen die tegen de
+    /// verzameling CONCRETE boekjesnamen (alle tokens zonder wildcard, over alle items) worden
+    /// geëxpandeerd — case-insensitive, cultuur-invariant. Een patroon maakt nooit zelf een boekje
+    /// aan; een patroon zonder match levert een waarschuwing. Items zonder enig boekje (geen waarde,
+    /// of alleen patronen zonder match) vallen in "overig".
+    /// Groepen alfabetisch (OrdinalIgnoreCase); items binnen een groep in selectievolgorde.
     /// </summary>
-    private static List<ExportJob> SplitGroupedJobs(
-        IReadOnlyList<SheetItem> items, ExportFormat format, string groupParameter, string prefix, string separators,
-        IReadOnlyDictionary<string, string>? documentTokens)
+    private static List<ExportJob> GroupJobs(
+        IReadOnlyList<SheetItem> items, ExportFormat format,
+        Func<SheetItem, IReadOnlyList<string>> keysOf, StringComparer comparer, bool expandWildcards, string prefix,
+        IReadOnlyDictionary<string, string>? documentTokens, ICollection<string>? warnings)
     {
-        var order = new List<string>();
-        var groups = new Dictionary<string, List<SheetItem>>(StringComparer.OrdinalIgnoreCase);
+        // Pas 1: tokens per item, concrete namen verzamelen (volgorde van eerste voorkomen)
+        var perItem = new List<(SheetItem Item, List<string> Concrete, List<string> Patterns)>();
+        var concreteOrder = new List<string>();
+        var concreteSeen = new HashSet<string>(comparer);
 
         foreach (var item in items)
         {
-            var raw = item.Parameters.GetValueOrDefault(groupParameter, "");
-            foreach (var token in SplitGroupValue(raw, separators))
+            var concrete = new List<string>();
+            var patterns = new List<string>();
+            foreach (var key in keysOf(item))
             {
-                if (!groups.TryGetValue(token, out var members))
-                {
-                    members = [];
-                    groups[token] = members;
-                    order.Add(token);
-                }
-                members.Add(item);
+                if (expandWildcards && IsWildcardPattern(key)) patterns.Add(key);
+                else concrete.Add(key);
             }
+            foreach (var key in concrete)
+                if (concreteSeen.Add(key)) concreteOrder.Add(key);
+            perItem.Add((item, concrete, patterns));
         }
 
-        return order
+        // Pas 2: patronen expanderen tegen de concrete namen; lidmaatschap per item
+        var unmatched = new List<string>();
+        var membership = new List<(SheetItem Item, HashSet<string> Keys)>();
+        foreach (var (item, concrete, patterns) in perItem)
+        {
+            var keys = new HashSet<string>(concrete, comparer);
+            foreach (var pattern in patterns)
+            {
+                var regex = GlobToRegex(pattern);
+                var hits = concreteOrder.Where(name => regex.IsMatch(name)).ToList();
+                if (hits.Count == 0)
+                {
+                    if (!unmatched.Contains(pattern, StringComparer.OrdinalIgnoreCase)) unmatched.Add(pattern);
+                    continue;
+                }
+                foreach (var hit in hits) keys.Add(hit);
+            }
+            if (keys.Count == 0)
+            {
+                // Geen enkel boekje: "overig" (bestaand gedrag), nooit stilzwijgend weg
+                keys.Add("");
+                if (concreteSeen.Add("")) concreteOrder.Add("");
+            }
+            membership.Add((item, keys));
+        }
+
+        if (warnings is not null)
+            foreach (var pattern in unmatched)
+                warnings.Add($"patroon '{pattern}' matcht geen enkel boekje");
+
+        return concreteOrder
             .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
-            .Select(k => GroupJob(format, k, groups[k], prefix, documentTokens))
+            .Select(key => GroupJob(
+                format, key,
+                membership.Where(m => m.Keys.Contains(key)).Select(m => m.Item).ToList(),
+                prefix, documentTokens))
+            .Where(job => job.ElementIds.Count > 0)
             .ToList();
+    }
+
+    /// <summary>True als het token een glob-wildcard bevat (<c>*</c> of <c>?</c>).</summary>
+    public static bool IsWildcardPattern(string token) =>
+        !string.IsNullOrEmpty(token) && (token.Contains('*') || token.Contains('?'));
+
+    private static readonly Dictionary<string, System.Text.RegularExpressions.Regex> GlobCache =
+        new(StringComparer.Ordinal);
+
+    /// <summary>Glob → anker-regex: <c>*</c> = 0 of meer tekens, <c>?</c> = 1 teken; case-insensitive, cultuur-invariant.</summary>
+    public static System.Text.RegularExpressions.Regex GlobToRegex(string pattern)
+    {
+        lock (GlobCache)
+        {
+            if (GlobCache.TryGetValue(pattern, out var cached)) return cached;
+            var escaped = System.Text.RegularExpressions.Regex.Escape(pattern)
+                .Replace(@"\*", ".*")
+                .Replace(@"\?", ".");
+            var regex = new System.Text.RegularExpressions.Regex(
+                "^" + escaped + "$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            GlobCache[pattern] = regex;
+            return regex;
+        }
     }
 
     /// <summary>

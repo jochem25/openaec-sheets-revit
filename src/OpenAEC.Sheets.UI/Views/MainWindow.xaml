@@ -222,6 +222,13 @@
                                                  IsEnabled="{Binding PdfSplitGroupValues}"
                                                  ToolTip="Elk teken splitst afzonderlijk. Standaard ; en , — leeg = niet splitsen." />
                                     </StackPanel>
+                                    <StackPanel Margin="20,0,0,4" IsEnabled="{Binding PdfCombineByParameter}">
+                                        <CheckBox Content="Wildcards expanderen (* en ?)" Style="{StaticResource SettingCheck}"
+                                                  Margin="20,0,0,0"
+                                                  IsChecked="{Binding PdfExpandWildcards}"
+                                                  IsEnabled="{Binding PdfSplitGroupValues}"
+                                                  ToolTip="Een gesplitst deel met * of ? is een patroon dat tegen de concrete boekjesnamen van de selectie wordt geëxpandeerd: '*' = voorblad in elk boekje, 'Z_*' = situatietekening in alle woningboekjes, '*_E1;*_E2' = in de E1- en E2-boekjes. Een patroon maakt nooit zelf een boekje aan; zonder match volgt een melding in de statusregel." />
+                                    </StackPanel>
                                     <TextBlock Text="Bestandsnaam / prefix:" Style="{StaticResource SettingLabel}" Margin="0,6,0,2" />
                                     <TextBox Style="{StaticResource SearchBox}"
                                              Text="{Binding PdfCombinedFileName, UpdateSourceTrigger=PropertyChanged}"

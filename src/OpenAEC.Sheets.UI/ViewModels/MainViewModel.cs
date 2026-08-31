@@ -114,10 +114,14 @@ public sealed partial class MainViewModel : ObservableObject
         var items = SelectedItems();
         if (items.Count == 0) return "";
 
-        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, CurrentDocumentTokens());
+        var warnings = new List<string>();
+        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, Profile.Pdf, CurrentDocumentTokens(), warnings);
         var pages = jobs.Sum(j => j.ElementIds.Count);
         var unique = jobs.SelectMany(j => j.ElementIds).Distinct().Count();
-        return $" — {jobs.Count} boekjes, {pages} bladpagina's ({unique} unieke sheets)";
+        var text = $" — {jobs.Count} boekjes, {pages} bladpagina's ({unique} unieke sheets)";
+        if (warnings.Count > 0)
+            text += " — let op: " + string.Join("; ", warnings);
+        return text;
     }
 
     private IReadOnlyList<SheetItem> SelectedItems() =>
@@ -277,6 +281,15 @@ public sealed partial class MainViewModel : ObservableObject
         UpdateStatus();
     }
 
+    // Wildcards (* en ?) in gesplitste tokens expanderen tegen de concrete boekjesnamen (↔ Profile.Pdf.ExpandWildcards)
+    [ObservableProperty] private bool _pdfExpandWildcards = true;
+
+    partial void OnPdfExpandWildcardsChanged(bool value)
+    {
+        Profile.Pdf.ExpandWildcards = value;
+        UpdateStatus();
+    }
+
     private void SyncPdfFileModeFromProfile()
     {
         PdfSeparateFiles = Profile.Pdf.FileMode == PdfFileMode.Separate;
@@ -284,6 +297,7 @@ public sealed partial class MainViewModel : ObservableObject
         PdfCombineByParameter = Profile.Pdf.FileMode == PdfFileMode.CombineByParameter;
         PdfSplitGroupValues = Profile.Pdf.SplitGroupValues;
         PdfGroupValueSeparators = Profile.Pdf.GroupValueSeparators;
+        PdfExpandWildcards = Profile.Pdf.ExpandWildcards;
         PdfCombinedFileName = Profile.Pdf.CombinedFileName;
     }
 

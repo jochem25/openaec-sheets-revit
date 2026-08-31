@@ -501,4 +501,209 @@ public class JobBuilderTests
         Assert.Equal("doc", tokens["Document Title"]);
         Assert.Equal("", tokens["Sheet Set"]);
     }
+
+    // ── Wildcards: glob-patronen in de groepswaarde expanderen tegen de concrete boekjesnamen ──
+
+    private static List<string> WarningsOf(IReadOnlyList<SheetItem> items, ExportProfile profile)
+    {
+        var warnings = new List<string>();
+        JobBuilder.GroupedJobs(items, ExportFormat.Pdf, profile.Pdf, null, warnings);
+        return warnings;
+    }
+
+    [Fact]
+    public void Wildcard_Star_CoverSheetInEveryBooklet_KeepsSelectionOrder()
+    {
+        var items = new List<SheetItem>
+        {
+            Sheet(1, "*"),                 // voorblad, als eerste geselecteerd
+            Sheet(2, "plattegronden"),
+            Sheet(3, "gevels;plattegronden"),
+            Sheet(4, "*"),                 // legenda, achteraan
+        };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(), "doc");
+
+        Assert.Equal(["gevels", "plattegronden"], jobs.Select(j => j.GroupLabel!).ToArray());
+        Assert.Equal([1L, 3L, 4L], jobs[0].ElementIds);
+        Assert.Equal([1L, 2L, 3L, 4L], jobs[1].ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_Prefix_MatchesAllHouseBooklets()
+    {
+        // Situatietekening "Z_*" → in beide woningboekjes
+        var items = new List<SheetItem>
+        {
+            Sheet(1, "Z_*"),
+            Sheet(2, "Z_00_01_G1"),
+            Sheet(3, "Z_11_04_G4"),
+            Sheet(4, "algemeen"),
+        };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(), "doc");
+
+        Assert.Equal(["algemeen", "Z_00_01_G1", "Z_11_04_G4"], jobs.Select(j => j.GroupLabel!).ToArray());
+        Assert.Equal([4L], jobs[0].ElementIds);
+        Assert.Equal([1L, 2L], jobs[1].ElementIds);
+        Assert.Equal([1L, 3L], jobs[2].ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_NarrowPrefix_MatchesOnlyThatFloor()
+    {
+        var items = new List<SheetItem>
+        {
+            Sheet(1, "Z_02_*"),
+            Sheet(2, "Z_02_01_G1"), Sheet(3, "Z_02_07_G3"),
+            Sheet(4, "Z_03_01_G1"),
+        };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(), "doc");
+
+        Assert.Equal([1L, 2L], jobs.Single(j => j.GroupLabel == "Z_02_01_G1").ElementIds);
+        Assert.Equal([1L, 3L], jobs.Single(j => j.GroupLabel == "Z_02_07_G3").ElementIds);
+        Assert.Equal([4L], jobs.Single(j => j.GroupLabel == "Z_03_01_G1").ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_Suffix_MultiplePatterns()
+    {
+        var items = new List<SheetItem>
+        {
+            Sheet(1, "*_E1;*_E2"),
+            Sheet(2, "Z_01_E1"), Sheet(3, "Z_02_E2"), Sheet(4, "Z_03_E3"),
+        };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(), "doc");
+
+        Assert.Equal([1L, 2L], jobs.Single(j => j.GroupLabel == "Z_01_E1").ElementIds);
+        Assert.Equal([1L, 3L], jobs.Single(j => j.GroupLabel == "Z_02_E2").ElementIds);
+        Assert.Equal([4L], jobs.Single(j => j.GroupLabel == "Z_03_E3").ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_QuestionMark_MatchesExactlyOneChar()
+    {
+        var items = new List<SheetItem> { Sheet(1, "G?"), Sheet(2, "G1"), Sheet(3, "G12") };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(), "doc");
+
+        Assert.Equal([1L, 2L], jobs.Single(j => j.GroupLabel == "G1").ElementIds);
+        Assert.Equal([3L], jobs.Single(j => j.GroupLabel == "G12").ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_CaseInsensitive()
+    {
+        var items = new List<SheetItem> { Sheet(1, "z_*"), Sheet(2, "Z_00_01_G1") };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(), "doc");
+
+        var job = Assert.Single(jobs);
+        Assert.Equal("Z_00_01_G1", job.GroupLabel);
+        Assert.Equal([1L, 2L], job.ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_NoMatch_WarningAndNoFile()
+    {
+        var items = new List<SheetItem> { Sheet(1, "X_*"), Sheet(2, "a") };
+        var profile = SplitProfile();
+
+        var jobs = JobBuilder.Build(items, profile, "doc");
+        var warnings = WarningsOf(items, profile);
+
+        // Geen bestand met * in de naam; blad 1 valt in "overig" (niet stilzwijgend weg)
+        Assert.Equal(["overig", "a"], jobs.Select(j => j.GroupLabel!).ToArray());
+        Assert.DoesNotContain(jobs, j => j.FileName.Contains('*'));
+        Assert.Equal([1L], jobs[0].ElementIds);
+        Assert.Equal([2L], jobs[1].ElementIds);
+        Assert.Equal(["patroon 'X_*' matcht geen enkel boekje"], warnings);
+    }
+
+    [Fact]
+    public void Wildcard_OnlyPatterns_NoConcreteNames_AllInOverig_NoCrash()
+    {
+        var items = new List<SheetItem> { Sheet(1, "*"), Sheet(2, "Z_*") };
+        var profile = SplitProfile();
+
+        var jobs = JobBuilder.Build(items, profile, "doc");
+
+        var job = Assert.Single(jobs);
+        Assert.Equal("overig", job.GroupLabel);
+        Assert.Equal([1L, 2L], job.ElementIds);
+        Assert.Equal(2, WarningsOf(items, profile).Count);
+    }
+
+    [Fact]
+    public void Wildcard_MixedWithConcrete_NoDuplicateMembership()
+    {
+        // "*;a" → in alle boekjes, niet dubbel in a
+        var jobs = JobBuilder.Build([Sheet(1, "*;a"), Sheet(2, "a"), Sheet(3, "b")], SplitProfile(), "doc");
+
+        Assert.Equal(["a", "b"], jobs.Select(j => j.GroupLabel!).ToArray());
+        Assert.Equal([1L, 2L], jobs[0].ElementIds);
+        Assert.Equal([1L, 3L], jobs[1].ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_NeverCreatesBooklet_AlsoWhenMatched()
+    {
+        var jobs = JobBuilder.Build([Sheet(1, "Z_*"), Sheet(2, "Z_01")], SplitProfile(), "doc");
+
+        Assert.Equal("Z_01", Assert.Single(jobs).GroupLabel);
+    }
+
+    [Fact]
+    public void Wildcard_Disabled_PatternIsLiteralGroup()
+    {
+        var profile = SplitProfile();
+        profile.Pdf.ExpandWildcards = false;
+
+        var jobs = JobBuilder.Build([Sheet(1, "Z_*"), Sheet(2, "Z_01")], profile, "doc");
+
+        Assert.Equal(["Z_*", "Z_01"], jobs.Select(j => j.GroupLabel!).ToArray());
+        Assert.Equal([1L], jobs[0].ElementIds);
+        Assert.Empty(WarningsOf([Sheet(1, "Z_*")], profile));
+    }
+
+    [Fact]
+    public void Wildcard_InactiveInExclusiveMode_CaseSensitiveRegression()
+    {
+        var items = new List<SheetItem> { Sheet(1, "*"), Sheet(2, "a"), Sheet(3, "A") };
+
+        var jobs = JobBuilder.Build(items, SplitProfile(split: false), "doc");
+
+        // Klassiek: "*" is gewoon een (letterlijke) groep, a en A blijven apart
+        Assert.Equal(3, jobs.Count);
+        Assert.Equal([1L], jobs.Single(j => j.GroupLabel == "*").ElementIds);
+    }
+
+    [Fact]
+    public void Wildcard_PageCountIncludesCoverInEveryBooklet()
+    {
+        var items = new List<SheetItem> { Sheet(1, "*"), Sheet(2, "a"), Sheet(3, "b"), Sheet(4, "c") };
+
+        var jobs = JobBuilder.GroupedJobs(items, ExportFormat.Pdf, SplitProfile().Pdf);
+
+        Assert.Equal(3, jobs.Count);
+        Assert.Equal(6, jobs.Sum(j => j.ElementIds.Count));                     // 3 boekjes × (voorblad + 1)
+        Assert.Equal(4, jobs.SelectMany(j => j.ElementIds).Distinct().Count());
+    }
+
+    [Theory]
+    [InlineData("Z_*", "Z_00_01_G1", true)]
+    [InlineData("Z_*", "z_x", true)]
+    [InlineData("Z_*", "Y_01", false)]
+    [InlineData("*_E1", "Z_01_E1", true)]
+    [InlineData("*_E1", "Z_01_E12", false)]
+    [InlineData("G?", "G1", true)]
+    [InlineData("G?", "G12", false)]
+    [InlineData("a.b*", "a.bc", true)]
+    [InlineData("a.b*", "aXbc", false)]   // punt is letterlijk, geen regex-metateken
+    public void GlobToRegex_Cases(string pattern, string name, bool expected)
+    {
+        Assert.Equal(expected, JobBuilder.GlobToRegex(pattern).IsMatch(name));
+    }
 }
