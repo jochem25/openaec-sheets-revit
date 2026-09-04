@@ -1,5 +1,10 @@
 # TODO — OpenAEC Sheet Exporter
 
+## v0.2.1 (2026-09-04)
+- [x] PDF-default rasterkwaliteit → Presentation
+- [x] Exportvoorbeeld: TempPage-rijen ("PDF (blad 1×)") verborgen
+- [ ] Runtime-check in Revit: voorbeeldgrid toont alleen boekjes; nieuwe profielen starten op Presentation
+
 ## v0.2 — PDF waarde splitsen (branch `feature/pdf-split-group-values`, 2026-08-31)
 - [x] Core: `SplitGroupValues` + `GroupValueSeparators` in PdfSettings, split-pad in `JobBuilder.GroupedJobs`
 - [x] UI: checkbox + scheidingstekens, statusregel met boekjes-telling

@@ -641,7 +641,7 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <DataGrid ItemsSource="{Binding Jobs}"
+                    <DataGrid ItemsSource="{Binding JobsView}"
                               AutoGenerateColumns="False"
                               CanUserAddRows="False"
                               IsReadOnly="True"

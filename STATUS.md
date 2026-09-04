@@ -1,6 +1,11 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-08-31 (v0.2.0 gemerged naar master; installer gebouwd)
+> Laatst bijgewerkt: 2026-09-04 (v0.2.1: rasterkwaliteit-default Presentation + TempPage-rijen uit exportvoorbeeld)
+
+### Voltooid (4 september) — v0.2.1
+- PDF-default rasterkwaliteit `High` → `Presentation` (`FormatSettings.cs`); bestaande profielen behouden hun opgeslagen waarde (serializer schrijft alle velden)
+- Exportvoorbeeld-grid filtert `TempPage`-jobs weg (`JobsView` ICollectionView in `MainViewModel`, DataGrid bindt op `JobsView`); uitvoerplan/export ongewijzigd
+- Tests 94/94 groen; nog niet runtime-getest in Revit
 
 ### Voltooid (31 augustus) — v0.2.0, branch `feature/pdf-split-group-values`
 - PDF "Combineer per parameterwaarde" kan de parameterwaarde nu splitsen op scheidingstekens (default `;,`, instelbaar): per token een eigen gecombineerde PDF, één blad kan in meerdere boekjes komen (case 2459 Parkview: `plattegronden;plattegronden-noord`)

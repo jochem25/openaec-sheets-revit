@@ -70,7 +70,7 @@ public sealed class PdfSettings
     /// </summary>
     public bool AssembleBooklets { get; set; } = true;
     public bool VectorHiddenLines { get; set; } = true;
-    public RasterQuality RasterQuality { get; set; } = RasterQuality.High;
+    public RasterQuality RasterQuality { get; set; } = RasterQuality.Presentation;
     public ColorMode Colors { get; set; } = ColorMode.Color;
     /// <summary>Export-DPI: 72 | 144 | 300 | 600 | 1200</summary>
     public int QualityDpi { get; set; } = 600;

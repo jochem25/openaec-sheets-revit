@@ -2,6 +2,12 @@
 
 Formaat: [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/), versienummer uit `Directory.Build.props`.
 
+## [0.2.1] — 2026-09-04
+
+### Gewijzigd
+- PDF-default rasterkwaliteit is nu **Presentation** (was High). Bestaande profielen behouden hun opgeslagen waarde; alleen nieuwe profielen krijgen de nieuwe default.
+- Het exportvoorbeeld toont geen `PDF (blad 1×)`-rijen meer (tijdelijke per-blad renders bij boekjes-assemblage). De regel "(X bladen worden 1× gerenderd en tot boekjes samengesteld)" blijft als uitleg staan; aan de export zelf verandert niets.
+
 ## [0.2.0] — 2026-08-31
 
 ### Toegevoegd

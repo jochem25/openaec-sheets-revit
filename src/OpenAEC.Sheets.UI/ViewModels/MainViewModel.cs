@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,6 +28,11 @@ public sealed partial class MainViewModel : ObservableObject
         _gateway = gateway;
         _profileStore = profileStore;
         _profile = new ExportProfile();
+
+        // Voorbeeld-grid: tijdelijke per-blad renders (TempPage) niet tonen — dat is
+        // uitvoeringsdetail van de boekjes-assemblage, geen exportresultaat.
+        JobsView = CollectionViewSource.GetDefaultView(Jobs);
+        JobsView.Filter = o => o is JobRowViewModel row && row.Job.Kind != ExportJobKind.TempPage;
     }
 
     // ── Selectie ────────────────────────────────────────────────────────────
@@ -474,6 +481,9 @@ public sealed partial class MainViewModel : ObservableObject
     // ── Export ──────────────────────────────────────────────────────────────
 
     public ObservableCollection<JobRowViewModel> Jobs { get; } = [];
+
+    /// <summary>Gefilterde weergave van <see cref="Jobs"/> voor de voorbeeld-grid (zonder TempPage-jobs).</summary>
+    public ICollectionView JobsView { get; }
 
     [ObservableProperty]
     private bool _isExporting;
