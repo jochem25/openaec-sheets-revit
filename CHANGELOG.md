@@ -2,6 +2,15 @@
 
 Formaat: [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/), versienummer uit `Directory.Build.props`.
 
+## [0.3.0] — 2026-09-04
+
+### Toegevoegd
+- **Tabblad "Printsets".** Revit View/Sheet Sets (printsets) aanmaken uit filters op sheetparameters. Filterbouwer met stapelbare regels (parameter | operator | waarde) en EN/OF-combinatie; operators: is (niet) gelijk aan, bevat, begint/eindigt met, wildcard (`*`/`?`), is (niet) leeg, in lijst (`;` of `,`). Filterbron: alle sheet- en titleblock-parameters plus Sheet Number/Name, Current Revision en Formaat.
+- Live voorbeeld met alle sheets en checkboxes: afwijkingen van het filter worden als handmatige uitzonderingen op de definitie bewaard.
+- **Bulk-generatie:** "set per unieke waarde van parameter X" (bijv. per bouwdeel één set), met waarde-splitsen op `;`/`,` (zelfde logica als de boekjes) en `{Group}` in de naamtemplate.
+- Bestaande set **overschrijven** of **alleen aanvullen**; sets verwijderen uit Revit (met bevestiging); "Alle sets verversen" genereert alle opgeslagen definities opnieuw — handig na nieuwe sheets.
+- Filterdefinities worden in het exportprofiel bewaard (JSON `print_sets`); oude profielen laden ongewijzigd. Nieuw aangemaakte sets verschijnen direct in de set-keuze op het tabblad Selectie.
+
 ## [0.2.1] — 2026-09-04
 
 ### Gewijzigd

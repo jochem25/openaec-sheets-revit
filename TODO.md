@@ -1,5 +1,13 @@
 # TODO — OpenAEC Sheet Exporter
 
+## v0.3.0 — Printsets-tabblad (2026-09-04)
+- [x] Core PrintSetEngine + PrintSetDefinition, profiel-persistentie `print_sets`
+- [x] Gateway ApplyPrintSetsAsync/DeletePrintSetAsync (ViewSheetSetting, één transactie)
+- [x] UI-tabblad: filterbouwer, voorbeeld met uitzonderingen, bulk, verwijderen, "Alle sets verversen"
+- [x] Tests 130/130
+- [ ] **Runtime-test in Revit:** set aanmaken/overschrijven/aanvullen/verwijderen; bulk per bouwdeel; SaveAs na Delete (stale-handle pad); set verschijnt in Selectie-tab én Revit Print-dialoog
+- [ ] Na runtime-ack: installer 0.3.0 bouwen
+
 ## v0.2.1 (2026-09-04)
 - [x] PDF-default rasterkwaliteit → Presentation
 - [x] Exportvoorbeeld: TempPage-rijen ("PDF (blad 1×)") verborgen
@@ -34,7 +42,7 @@
 - [x] ~~Live preview van bestandsnaam~~ → voorbeeldregel onder de naamtemplate (tab Exporteren, 2026-08-31)
 
 ## v0.3+
-- [ ] V/S Sets aanmaken/opslaan vanuit de tool
+- [x] ~~V/S Sets aanmaken/opslaan vanuit de tool~~ → Printsets-tabblad (v0.3.0, 2026-09-04)
 - [ ] Revisie-filter ("alleen sheets met revisie X")
 - [ ] Export-manifest JSON naar %TEMP%\3bm_exchange voor BM Reports transmittal
 

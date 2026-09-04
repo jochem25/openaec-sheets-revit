@@ -30,5 +30,8 @@ public sealed class ExportProfile
     public ImgSettings Img { get; set; } = new();
     public XmlSettings Xml { get; set; } = new();
 
+    /// <summary>Opgeslagen printset-definities (filters voor View/Sheet Sets); leeg bij oudere profielen.</summary>
+    public List<PrintSetDefinition> PrintSets { get; set; } = [];
+
     public bool IsEnabled(ExportFormat format) => EnabledFormats.Contains(format);
 }

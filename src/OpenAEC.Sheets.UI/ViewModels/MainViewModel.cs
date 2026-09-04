@@ -33,6 +33,30 @@ public sealed partial class MainViewModel : ObservableObject
         // uitvoeringsdetail van de boekjes-assemblage, geen exportresultaat.
         JobsView = CollectionViewSource.GetDefaultView(Jobs);
         JobsView.Filter = o => o is JobRowViewModel row && row.Job.Kind != ExportJobKind.TempPage;
+
+        PrintSets = new PrintSetsViewModel(
+            gateway,
+            () => _sheetRows.Select(r => r.Item).ToList(),
+            () => SetFilters.Where(s => s != ALL_SETS).ToList(),
+            OnPrintSetsApplied);
+        PrintSets.LoadFromProfile(Profile);
+    }
+
+    // ── Printsets ───────────────────────────────────────────────────────────
+
+    public PrintSetsViewModel PrintSets { get; }
+
+    /// <summary>
+    /// Callback voor <see cref="PrintSetsViewModel"/>: na het aanmaken van sets in Revit de
+    /// set-filter (tabblad Selectie) en de inhoud ervan verversen zodat ze direct bruikbaar zijn.
+    /// </summary>
+    private void OnPrintSetsApplied(IReadOnlyDictionary<string, IReadOnlyList<long>> sets)
+    {
+        foreach (var (name, ids) in sets)
+        {
+            if (!SetFilters.Contains(name)) SetFilters.Add(name);
+            _setContents[name] = [.. ids];
+        }
     }
 
     // ── Selectie ────────────────────────────────────────────────────────────
@@ -188,6 +212,7 @@ public sealed partial class MainViewModel : ObservableObject
         SyncXmlParametersFromProfile();
         SyncPdfFileModeFromProfile();
         SyncNamingFromProfile();
+        PrintSets.LoadFromProfile(Profile);
     }
 
     [RelayCommand]
@@ -654,6 +679,9 @@ public sealed partial class MainViewModel : ObservableObject
 
         SyncFormatFlagsFromProfile();
         ApplyFilter();
+
+        PrintSets.RefreshParameterNames();
+        PrintSets.RefreshExistingSetNamesCommand.Execute(null);
     }
 
     private SheetRowViewModel Track(SheetRowViewModel row)

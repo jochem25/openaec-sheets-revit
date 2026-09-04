@@ -30,6 +30,14 @@ public interface IRevitGateway
         string outputFolder,
         IProgress<ExportProgress> progress,
         CancellationToken cancellationToken);
+
+    /// <summary>Maakt/actualiseert View/Sheet Sets. Retourneert per set een resultaatregel ("naam: 12 sheets" of foutmelding).</summary>
+    Task<IReadOnlyList<string>> ApplyPrintSetsAsync(
+        IReadOnlyList<(string Name, IReadOnlyList<long> Ids, PrintSetMode Mode)> sets,
+        IProgress<string>? progress = null);
+
+    /// <summary>Verwijdert een View/Sheet Set op naam. Retourneert foutmelding of null.</summary>
+    Task<string?> DeletePrintSetAsync(string name);
 }
 
 /// <summary>Alle modelgegevens voor de UI, opgehaald in één Revit-rondreis.</summary>

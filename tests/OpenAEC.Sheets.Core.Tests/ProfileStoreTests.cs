@@ -102,6 +102,67 @@ public class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void SaveAndLoad_RoundTripsPrintSets()
+    {
+        var profile = new ExportProfile { Name = "printsets" };
+        profile.PrintSets.Add(new PrintSetDefinition
+        {
+            Name = "TO_{Group}",
+            Combine = FilterCombine.Any,
+            Rules =
+            [
+                new FilterRule { Parameter = "bouwdeel", Operator = FilterOperator.Equals, Value = "A" },
+                new FilterRule { Parameter = "Sheet Number", Operator = FilterOperator.Wildcard, Value = "TO_*" },
+            ],
+            Mode = PrintSetMode.AddOnly,
+            BulkPerParameter = true,
+            BulkParameter = "bouwdeel",
+            SplitBulkValues = false,
+            ManualIncludes = [1L, 2L],
+            ManualExcludes = [3L],
+        });
+
+        _store.Save(profile);
+        var loaded = _store.Load("printsets");
+
+        Assert.NotNull(loaded);
+        var def = Assert.Single(loaded.PrintSets);
+        Assert.Equal("TO_{Group}", def.Name);
+        Assert.Equal(FilterCombine.Any, def.Combine);
+        Assert.Equal(2, def.Rules.Count);
+        Assert.Equal(FilterOperator.Equals, def.Rules[0].Operator);
+        Assert.Equal("A", def.Rules[0].Value);
+        Assert.Equal(FilterOperator.Wildcard, def.Rules[1].Operator);
+        Assert.Equal(PrintSetMode.AddOnly, def.Mode);
+        Assert.True(def.BulkPerParameter);
+        Assert.Equal("bouwdeel", def.BulkParameter);
+        Assert.False(def.SplitBulkValues);
+        Assert.Equal([1L, 2L], def.ManualIncludes);
+        Assert.Equal([3L], def.ManualExcludes);
+
+        var json = File.ReadAllText(Path.Combine(_tempDir, "printsets.json"));
+        Assert.Contains("\"print_sets\"", json);
+    }
+
+    [Fact]
+    public void Load_LegacyProfileWithoutPrintSets_LoadsWithEmptyList()
+    {
+        // Profiel van vóór de printsets-feature: geen "print_sets" veld in de JSON
+        const string legacyJson = """
+            {
+              "name": "oud-zonder-printsets",
+              "enabled_formats": [ "pdf" ]
+            }
+            """;
+        File.WriteAllText(Path.Combine(_tempDir, "oud-zonder-printsets.json"), legacyJson);
+
+        var loaded = _store.Load("oud-zonder-printsets");
+
+        Assert.NotNull(loaded);
+        Assert.Empty(loaded.PrintSets);
+    }
+
+    [Fact]
     public void Load_LegacyProfileWithoutSplitFields_UsesDefaults()
     {
         // Profiel van vóór v0.2: geen split_group_values / group_value_separators in de JSON

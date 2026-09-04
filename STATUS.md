@@ -1,6 +1,14 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-09-04 (v0.2.1: rasterkwaliteit-default Presentation + TempPage-rijen uit exportvoorbeeld)
+> Laatst bijgewerkt: 2026-09-04 (v0.3.0: Printsets-tabblad — sets aanmaken uit parameterfilters)
+
+### Voltooid (4 september) — v0.3.0 Printsets-tabblad
+- Nieuw tabblad "Printsets": View/Sheet Sets aanmaken uit filterregels op sheetparameters (EN/OF, 9 operators incl. wildcard/in-lijst), live voorbeeld met handmatige uitzonderingen, bulk "set per unieke parameterwaarde" (met `;,`-split en `{Group}`-template), overschrijven/aanvullen, verwijderen, "Alle sets verversen"
+- Core: `PrintSetDefinition` + `PrintSetEngine` (hergebruik `JobBuilder.GlobToRegex`/`SplitGroupValue`/`NamingEngine`); definities in profiel-JSON `print_sets` (legacy-profielen laden ongewijzigd)
+- Gateway: `ApplyPrintSetsAsync`/`DeletePrintSetAsync` — eerste schrijf-actie van de plugin (`ViewSheetSetting.SaveAs` in één transactie, per set try/catch, ViewSheetSetting opnieuw opgevraagd na Delete tegen stale handle)
+- Nieuwe sets verschijnen direct in de set-keuze op tabblad Selectie
+- Implementatie via sonnet-agent op detailspec; review hoofdsessie (3 fixes: lege-naam-guard, statusupdate na toggle, stale-handle gateway)
+- Tests 130/130 groen (35 nieuwe PrintSetEngine + 2 profiel round-trip); **nog niet runtime-getest in Revit**
 
 ### Voltooid (4 september) — v0.2.1
 - PDF-default rasterkwaliteit `High` → `Presentation` (`FormatSettings.cs`); bestaande profielen behouden hun opgeslagen waarde (serializer schrijft alle velden)

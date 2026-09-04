@@ -113,7 +113,149 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ═══ TAB 2: FORMATEN ═══ -->
+            <!-- ═══ TAB 2: PRINTSETS ═══ -->
+            <TabItem Header="  Printsets  ">
+                <Grid Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Links: opgeslagen printset-definities -->
+                    <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock DockPanel.Dock="Top" Text="Opgeslagen printsets" Style="{StaticResource SettingLabel}"
+                                   FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Button Content="Nieuw" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"
+                                        Command="{Binding PrintSets.NewDefinitionCommand}" />
+                                <Button Content="Dupliceren" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"
+                                        Command="{Binding PrintSets.DuplicateDefinitionCommand}" />
+                                <Button Content="Verwijderen" Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding PrintSets.DeleteDefinitionCommand}"
+                                        ToolTip="Verwijdert de definitie alleen uit het profiel, niet de set in Revit" />
+                            </StackPanel>
+                            <Button Content="Alle sets verversen" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Stretch"
+                                    Command="{Binding PrintSets.RefreshExistingSetNamesCommand}"
+                                    ToolTip="Ververst de lijst bestaande Revit-sets voor 'Verwijderen uit Revit' hieronder" />
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding PrintSets.SavedDefinitions}"
+                                 SelectedItem="{Binding PrintSets.SelectedDefinition}"
+                                 DisplayMemberPath="Name" />
+                    </DockPanel>
+
+                    <!-- Rechts: editor -->
+                    <DockPanel Grid.Column="1">
+                        <StackPanel DockPanel.Dock="Top">
+
+                            <GroupBox Header="Filterregels" Style="{StaticResource SettingsGroup}" Width="Auto" HorizontalAlignment="Stretch">
+                                <StackPanel>
+                                    <ItemsControl ItemsSource="{Binding PrintSets.Rules}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                    <ComboBox Width="220" Margin="0,0,6,0" IsEditable="True"
+                                                              ItemsSource="{Binding DataContext.PrintSets.ParameterNames, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                              Text="{Binding Parameter, UpdateSourceTrigger=PropertyChanged}"
+                                                              ToolTip="Sheetparameter — vrij te typen of te kiezen" />
+                                                    <ComboBox Width="170" Margin="0,0,6,0"
+                                                              ItemsSource="{Binding DataContext.PrintSets.Operators, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                              DisplayMemberPath="Label" SelectedValuePath="Value"
+                                                              SelectedValue="{Binding Operator}" />
+                                                    <TextBox Width="220" Style="{StaticResource SearchBox}" Margin="0,0,6,0"
+                                                             Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <Button Content="×" Width="28" Style="{StaticResource SecondaryButton}"
+                                                            Command="{Binding RemoveCommand}" ToolTip="Regel verwijderen" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button Content="+ Regel" Style="{StaticResource SecondaryButton}" Margin="0,0,16,0"
+                                                Command="{Binding PrintSets.AddRuleCommand}" />
+                                        <RadioButton Content="alle regels (EN)" GroupName="PrintSetCombine" VerticalAlignment="Center" Margin="0,0,12,0"
+                                                     IsChecked="{Binding PrintSets.CombineAll}" />
+                                        <RadioButton Content="minstens één regel (OF)" GroupName="PrintSetCombine" VerticalAlignment="Center"
+                                                     IsChecked="{Binding PrintSets.CombineAny}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <WrapPanel Orientation="Horizontal">
+                                <GroupBox Header="Set" Style="{StaticResource SettingsGroup}" Width="360">
+                                    <StackPanel>
+                                        <TextBlock Text="Naam (template met {Group} bij bulk):" Style="{StaticResource SettingLabel}" Margin="0,0,0,2" />
+                                        <TextBox Style="{StaticResource SearchBox}"
+                                                 Text="{Binding PrintSets.SetName, UpdateSourceTrigger=PropertyChanged}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <RadioButton Content="Overschrijven" GroupName="PrintSetMode" VerticalAlignment="Center" Margin="0,0,12,0"
+                                                         IsChecked="{Binding PrintSets.ModeOverwrite}" />
+                                            <RadioButton Content="Alleen toevoegen" GroupName="PrintSetMode" VerticalAlignment="Center"
+                                                         IsChecked="{Binding PrintSets.ModeAddOnly}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </GroupBox>
+                                <GroupBox Header="Bulk: set per parameterwaarde" Style="{StaticResource SettingsGroup}" Width="360">
+                                    <StackPanel>
+                                        <CheckBox Content="Meerdere sets aanmaken, één per waarde van:" Style="{StaticResource SettingCheck}"
+                                                  IsChecked="{Binding PrintSets.BulkPerParameter}" />
+                                        <ComboBox Margin="20,2,0,4"
+                                                  ItemsSource="{Binding PrintSets.ParameterNames}"
+                                                  SelectedItem="{Binding PrintSets.BulkParameter}"
+                                                  IsEnabled="{Binding PrintSets.BulkPerParameter}" />
+                                        <CheckBox Content="Waarde splitsen (; of ,)" Style="{StaticResource SettingCheck}" Margin="20,2,0,0"
+                                                  IsChecked="{Binding PrintSets.SplitBulkValues}"
+                                                  IsEnabled="{Binding PrintSets.BulkPerParameter}" />
+                                    </StackPanel>
+                                </GroupBox>
+                            </WrapPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                <Button Content="Voorbeeld verversen" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                        Command="{Binding PrintSets.RefreshPreviewCommand}" />
+                                <Button Content="Set aanmaken in Revit" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"
+                                        Command="{Binding PrintSets.ApplySetCommand}" />
+                                <Button Content="Alle sets aanmaken" Style="{StaticResource SecondaryButton}" Margin="0,0,20,0"
+                                        Command="{Binding PrintSets.ApplyAllSetsCommand}"
+                                        ToolTip="Maakt alle opgeslagen printsets uit dit profiel achter elkaar aan" />
+                                <TextBlock Text="Verwijderen uit Revit:" Style="{StaticResource SettingLabel}" />
+                                <ComboBox Width="200" Margin="0,0,8,0"
+                                          ItemsSource="{Binding PrintSets.ExistingRevitSetNames}"
+                                          SelectedItem="{Binding PrintSets.SelectedDeleteSetName}" />
+                                <Button Content="Verwijderen" Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding PrintSets.DeleteRevitSetCommand}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding PrintSets.PreviewStatus}" Margin="0,0,0,8" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <DataGrid ItemsSource="{Binding PrintSets.Preview}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeight="26"
+                                  FontSize="12"
+                                  EnableRowVirtualization="True">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Width="36">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Nummer" Binding="{Binding Number}" Width="110" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Naam" Binding="{Binding Name}" Width="*" IsReadOnly="True" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 3: FORMATEN ═══ -->
             <TabItem Header="  Formaten  ">
                 <TabControl Margin="10" TabStripPlacement="Top">
 
@@ -578,7 +720,7 @@
                 </TabControl>
             </TabItem>
 
-            <!-- ═══ TAB 3: EXPORTEREN ═══ -->
+            <!-- ═══ TAB 4: EXPORTEREN ═══ -->
             <TabItem Header="  Exporteren  ">
                 <DockPanel Margin="10">
 

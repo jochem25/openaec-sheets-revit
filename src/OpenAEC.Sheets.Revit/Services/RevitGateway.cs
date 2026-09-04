@@ -765,4 +765,106 @@ public sealed class RevitGateway : IRevitGateway
                 .OfClass(typeof(T))
                 .Cast<T>()
                 .FirstOrDefault(s => s.Name == name);
+
+    // ── Printsets ───────────────────────────────────────────────────────────
+
+    public Task<IReadOnlyList<string>> ApplyPrintSetsAsync(
+        IReadOnlyList<(string Name, IReadOnlyList<long> Ids, PrintSetMode Mode)> sets,
+        IProgress<string>? progress = null) =>
+        _handler.ExecuteAsync(app =>
+        {
+            var doc = app.ActiveUIDocument.Document;
+            var results = new List<string>();
+
+            using var transaction = new Transaction(doc, "OpenAEC Printsets");
+            transaction.Start();
+
+            var pm = doc.PrintManager;
+            pm.PrintRange = PrintRange.Select;
+            var vss = pm.ViewSheetSetting;
+
+            for (var i = 0; i < sets.Count; i++)
+            {
+                var (name, ids, mode) = sets[i];
+                Report(progress, $"Printset '{name}' opslaan ({i + 1}/{sets.Count})…");
+
+                try
+                {
+                    var existing = FindViewSheetSet(doc, name);
+                    var finalIds = ids;
+                    if (mode == PrintSetMode.AddOnly && existing is not null)
+                    {
+                        var existingIds = new List<long>();
+                        foreach (View v in existing.Views) existingIds.Add(v.Id.Value);
+                        finalIds = existingIds.Concat(ids).Distinct().ToList();
+                    }
+
+                    if (existing is not null)
+                    {
+                        vss.CurrentViewSheetSet = existing;
+                        vss.Delete();
+                        // Na Delete kan de ViewSheetSetting-handle naar de verwijderde set wijzen;
+                        // opnieuw opvragen voorkomt een stale CurrentViewSheetSet bij SaveAs.
+                        vss = pm.ViewSheetSetting;
+                    }
+
+                    var viewSet = new ViewSet();
+                    foreach (var id in finalIds)
+                    {
+                        if (doc.GetElement(new ElementId(id)) is View view && view.CanBePrinted)
+                            viewSet.Insert(view);
+                    }
+
+                    if (viewSet.IsEmpty)
+                    {
+                        results.Add($"{name}: 0 sheets — overgeslagen");
+                        continue;
+                    }
+
+                    vss.CurrentViewSheetSet.Views = viewSet;
+                    vss.SaveAs(name);
+                    results.Add($"{name}: {viewSet.Size} sheets");
+                }
+                catch (Exception ex)
+                {
+                    PluginLogger.LogException(ex);
+                    results.Add($"✗ {name}: {ex.Message}");
+                }
+            }
+
+            transaction.Commit();
+            return (IReadOnlyList<string>)results;
+        });
+
+    public Task<string?> DeletePrintSetAsync(string name) =>
+        _handler.ExecuteAsync(app =>
+        {
+            var doc = app.ActiveUIDocument.Document;
+            try
+            {
+                var existing = FindViewSheetSet(doc, name);
+                if (existing is null) return (string?)$"Set '{name}' niet gevonden";
+
+                using var transaction = new Transaction(doc, "OpenAEC Printset verwijderen");
+                transaction.Start();
+                var pm = doc.PrintManager;
+                pm.PrintRange = PrintRange.Select;
+                var vss = pm.ViewSheetSetting;
+                vss.CurrentViewSheetSet = existing;
+                vss.Delete();
+                transaction.Commit();
+                return (string?)null;
+            }
+            catch (Exception ex)
+            {
+                PluginLogger.LogException(ex);
+                return (string?)ex.Message;
+            }
+        });
+
+    private static ViewSheetSet? FindViewSheetSet(Document doc, string name) =>
+        new FilteredElementCollector(doc)
+            .OfClass(typeof(ViewSheetSet))
+            .Cast<ViewSheetSet>()
+            .FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
 }
