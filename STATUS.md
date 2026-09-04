@@ -1,6 +1,6 @@
 # OpenAEC Sheet Exporter — Status
 
-> Laatst bijgewerkt: 2026-09-04 (v0.3.0: Printsets-tabblad — sets aanmaken uit parameterfilters)
+> Laatst bijgewerkt: 2026-09-04 (v0.3.0: Printsets-tabblad; GitHub-release v0.3.0 met installer gepubliceerd — runtime-test nog open)
 
 ### Voltooid (4 september) — v0.3.0 Printsets-tabblad
 - Nieuw tabblad "Printsets": View/Sheet Sets aanmaken uit filterregels op sheetparameters (EN/OF, 9 operators incl. wildcard/in-lijst), live voorbeeld met handmatige uitzonderingen, bulk "set per unieke parameterwaarde" (met `;,`-split en `{Group}`-template), overschrijven/aanvullen, verwijderen, "Alle sets verversen"

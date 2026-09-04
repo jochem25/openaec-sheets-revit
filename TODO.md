@@ -6,7 +6,7 @@
 - [x] UI-tabblad: filterbouwer, voorbeeld met uitzonderingen, bulk, verwijderen, "Alle sets verversen"
 - [x] Tests 130/130
 - [ ] **Runtime-test in Revit:** set aanmaken/overschrijven/aanvullen/verwijderen; bulk per bouwdeel; SaveAs na Delete (stale-handle pad); set verschijnt in Selectie-tab én Revit Print-dialoog
-- [ ] Na runtime-ack: installer 0.3.0 bouwen
+- [x] Installer 0.3.0 gebouwd + GitHub-release v0.3.0 gepubliceerd (2026-09-04; release vóór runtime-ack op verzoek user)
 
 ## v0.2.1 (2026-09-04)
 - [x] PDF-default rasterkwaliteit → Presentation
